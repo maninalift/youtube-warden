@@ -1,0 +1,46 @@
+
+   body {
+      font-family: Arial, sans-serif;
+    }
+
+    /* Styles for the modal */
+    #yt-police-modal {
+      display: block;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10pt;
+      border-radius: 10pt;
+      background-color: #eee;
+      border: 3pt solid #ccc;
+      z-index: 1;
+    }
+
+
+#yt-police-modal .seperator {
+  width: 100%;
+  padding: 0pt;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  border-top: 3pt solid #666;
+}
+
+#yt-police-modal > h1 {
+  color: red;
+  text-align: center;
+  width: 100%;
+} 
+
+
+#yt-police-modal  .btn-group {
+  width: 100%;
+  text-align: center;
+}
+
+#yt-police-modal button {
+  margin: 5pt;
+  padding: 5pt;
+  border-radius: 8pt;
+  border: 3pt solid purple;
+}
