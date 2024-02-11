@@ -1,43 +1,7 @@
-/* This runs after a web page loads */
 window.onload = init;
 
-
-//let allowedChannels = [
-//  { id: "RelaxationChannel" }
-//];
-
-
-//let allowedVids = [
-//  { id: "LCfH6A0BBvw" }
-//];
-
-
-
-// TODO:   syc
-//
-// TODO: allow channel
-// TODO: allow Video
-//
-// TODO: unblock everything for specific amount of time
-//
-// TODO: allow channel for specific amount of time 
-// TODO: allow video for specific amount of time
-//
-//  TODO:set timeout to re-check page
-//
-//  TODO: handle others ways videos might playe 
-//           - the pop-out player
-//           - playing in preview
-//
 // TODO: handle shorts 
 //           - separate approval for shorts and longs for a channel
-//
-//TODO: abstract away repeated code between allowVideo and allowChannel
-//
-//TODO: edit existing allow list
-//
-//
-//TODO: better password input
 //
 //
 //TODO: options page
@@ -45,7 +9,8 @@ window.onload = init;
 //        - password change
 //        - individual record deletion
 //        - clear all records
-
+//
+//TODO: prevent repeated password guessing
 
 let currentApprovedVideoId: string | null = null;
 
@@ -61,8 +26,8 @@ type AllowRecordWriter = { "all": AllowRecord } | { "channel": AllowRecord } | {
 
 function getParameterByName(name: string, url = window.location.href) {
   name = name.replace(/[\[\]]/g, '\\$&');
-  var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-    results = regex.exec(url);
+  const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+  const results = regex.exec(url);
   if (!results) return null;
   if (!results[2]) return '';
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
@@ -74,55 +39,50 @@ function getParameterByName(name: string, url = window.location.href) {
 //1/but it's not the right way to do crypto
 /////////////////////////////////////////////////////////////
 async function hashPassword(password: string, salt: string) {
-  const pwd_data = (new TextEncoder).encode(salt + password);
-  const hashBuffer = await crypto.subtle.digest("SHA-512", pwd_data);
+  const pwdData = (new TextEncoder).encode(salt + password);
+  const hashBuffer = await crypto.subtle.digest("SHA-512", pwdData);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   return hashHex;
 }
 
 async function setPassword(password: string) {
-  let salt = crypto.randomUUID();
+  const salt = crypto.randomUUID();
 
-  let passwordRecord = {
+  const passwordRecord = {
     salt: salt,
     hash: (await hashPassword(password, salt)),
   };
-
-  console.log(passwordRecord);
 
   await chrome.storage.sync.set({ password: passwordRecord });
 }
 
 async function hasPassword() {
-  let passwordRecord = (await chrome.storage.sync.get("password")).password;
-  console.log("found record:");
-  console.log(passwordRecord);
+  const passwordRecord = (await chrome.storage.sync.get("password")).password;
   return !!(passwordRecord);
 }
 
+async function clearPassword() {
+  await chrome.storage.sync.remove("password");
+}
+
 async function checkPassword(password: string) {
-  let passwordRecord = (await chrome.storage.sync.get("password")).password;
+  const passwordRecord = (await chrome.storage.sync.get("password")).password;
   if (!passwordRecord) return false;
-  let thisHash = hashPassword(password, passwordRecord.salt);
-  return (thisHash == passwordRecord.hash);
+  const thisHash = await hashPassword(password, passwordRecord.salt);
+  return (thisHash === passwordRecord.hash);
 }
 
 async function getAllowed(kind: AllowKind) {
-  let listKey = kind + "_list";
-  let allowedList = (await chrome.storage.sync.get(listKey))[listKey];
-  if (!allowedList) {
-    allowedList = [];
-    let data = { [listKey]: allowedList };
-    chrome.storage.sync.set(data);
-  }
+  const listKey = kind + "_list";
+  const allowedList = (await chrome.storage.sync.get(listKey))[listKey] || [];
   return allowedList;
 }
 
 async function isAllowed(kind: AllowKind, id: string) {
-  let allowedList = await getAllowed(kind);
+  const allowedList = await getAllowed(kind);
 
-  let allowedRecord = allowedList.find((x: AllowRecord) => x.id == id);
+  const allowedRecord = allowedList.find((x: AllowRecord) => x.id == id);
   if (!allowedRecord) return false;
   if (allowedRecord.expiry && allowedRecord.expiry < Date.now()) {
     return false;
@@ -130,31 +90,35 @@ async function isAllowed(kind: AllowKind, id: string) {
   if (allowedRecord.expiry) {
     // if ther is an expiry on the record, re-check the page one second after the expiry time
     currentApprovedVideoId = null;
-    setTimeout(securePage, allowedRecord.expiry - Date.now() + 1000);
+    setTimeout(reCheckPage, allowedRecord.expiry - Date.now() + 1000);
   }
-  console.log("IS ALLOWED " + kind + " : " + id);
   return true;
 }
 
-async function allow(kind: string, id: string, name: string) {
-  let listKey = kind + "_list";
-  let allowedList = (await chrome.storage.sync.get(listKey))[listKey];
-  if (!allowedList) allowedList = [];
+function reCheckPage() {
+  currentApprovedVideoId = null;
+  securePage();
+}
+
+async function allow(kind: string, id: string, name: string, expiry: number | null) {
+  const listKey = kind + "_list";
+  let allowedList = (await chrome.storage.sync.get(listKey))[listKey] || [];
 
   allowedList.push({
     id: id,
-    name: name
+    name: name,
+    expiry: expiry
   });
-  let data = { [listKey]: allowedList };
+  const data = { [listKey]: allowedList };
   await chrome.storage.sync.set(data);
 
   document.location.reload();
 }
 
-function blockWatchPage(videoId: string, channelId: string) {
-  let app = document.getElementsByTagName("ytd-app")[0];
+function blockWatchPage(videoId: string, channelId: string, videoTitle: string, channelName: string) {
+  const app = document.getElementsByTagName("ytd-app")[0];
   app.innerHTML = `
-                 <div id="yt-police-modal" class="modal">
+                 <div id="yt-warden-modal" class="modal">
                    <h1>You can't go there</h1>
                    <div id="give-up">
                      <div class="btn-group">
@@ -165,39 +129,60 @@ function blockWatchPage(videoId: string, channelId: string) {
                   <div class = "seperator"></div>
                    <div id="allow-content">
                      <div class="btn-group">
+                       <p><b>Allow video: </b>${videoTitle}</p>
                        <button id="allow-video-btn">Allow Video</button>
+                       <p><b>Allow channel: </b>${channelName}</p>
                        <button id="allow-channel-btn">Allow Channel</button>
                        <button id="allow-all-btn">Allow All</button>
                      </div>
                     <div id="time-limit">
-                      <input type="checkbox" id="is-limited" name="is-limited" >
-                      <label for="is-limited">Time limit</label><br>
+                       <p>Time limit:</p>
                        <input type="days" id="days" name="days" min="0" max="100" value="0" />
                        <input type="hours" id="hours" name="hours" min="0" max="23" value="0"/>
                        <input type="mins" id="mins" name="mins" min="0" max="59" value ="0" />
                      </div>
                      <input type="password" id="password" name="password" placeholder="Enter password">
                    </div>
-                 </input>             
+                 </div>             
                  `;
+
 
   document.querySelector("button#go-home-btn")?.addEventListener("click", () => { window.location.href = window.location.origin; });
   //document.querySelector("button#go-back-btn").addEventListener("click", () => { window.history.back(); window.location.reload(); });
-  document.querySelector("button#allow-video-btn")?.addEventListener("click", () => {
-    allow("video", videoId, "UNKNOWN");
-    // check password
-    // add time limit
-  });
-  document.querySelector("button#allow-channel-btn")?.addEventListener("click", () => {
-    allow("channel", channelId, "UNKNOWN");
-    // check password
-    // add time limit
-  });
-  document.querySelector("button#allow-all-btn")?.addEventListener("click", () => {
-    allow("all", "all", "all");
-    // check password
-    // add time limit
-  });
+
+  document.querySelector("button#allow-channel-btn")?.addEventListener("click", createAllowButtonHandler("video", videoId, videoTitle));
+  document.querySelector("button#allow-video-btn")?.addEventListener("click", createAllowButtonHandler("channel", channelId, channelName));
+  document.querySelector("button#allow-all-btn")?.addEventListener("click", createAllowButtonHandler("all", "all", "Everything"));
+
+}
+
+function createAllowButtonHandler(kind: string, id: string, name: string) {
+  return async (_: Event) => {
+
+    const password = (<HTMLInputElement>document.querySelector("#yt-warden-modal input#password"))?.value;
+
+    if (!(await checkPassword(password))) {
+      alert("password incorrect!");
+      return;
+    }
+
+    const days = Number((<HTMLInputElement>document.querySelector("#yt-warden-modal #days"))?.value) || 0;
+    const hours = Number((<HTMLInputElement>document.querySelector("#yt-warden-modal #hours"))?.value) || 0;
+    const mins = Number((<HTMLInputElement>document.querySelector("#yt-warden-modal #mins"))?.value) || 0;
+
+    const allowMins = mins + 60 * (hours + 24 * days);
+
+    if (allowMins == 0 && kind === "all") {
+      alert("You must include a time limit when unblocking all content!");
+      return;
+    }
+
+    const expiry = (allowMins === 0) ? null : (Date.now() + allowMins * 60 * 1000);
+
+    allow(kind, id, name, expiry);
+
+    document.location.reload();
+  }
 }
 
 async function canWatch(videoId: string, channelId: string) {
@@ -207,14 +192,13 @@ async function canWatch(videoId: string, channelId: string) {
   return false;
 }
 
-
 async function secureWatchPage() {
-  let channelLink = document.querySelector("ytd-watch-metadata #channel-name a");
-  let channelHref = channelLink && channelLink.getAttribute("href");
-  let channelId = channelHref && (new URL(channelHref, window.location.origin)).pathname;
+  const channelHref = document.querySelector("ytd-watch-metadata #channel-name a")?.getAttribute("href");
+  const channelId = channelHref && (new URL(channelHref, window.location.origin)).pathname?.slice(1);
+  const channelName = document.querySelector("ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
 
-  let vidIdEl = document.querySelector("[video-id]:has(video.html5-main-video)")
-  let videoId = vidIdEl && vidIdEl.getAttribute("video-id");
+  const videoId = document.querySelector("[video-id]:has(video.html5-main-video)")?.getAttribute("video-id");
+  const videoTitle = document.querySelector("ytd-watch-metadata #title")?.textContent?.trim() || "Unknown";
 
   if (!channelId || !videoId) { stopAllVideo(); return; }
 
@@ -225,19 +209,15 @@ async function secureWatchPage() {
     return;
   }
 
-  blockWatchPage(videoId, channelId);
+  blockWatchPage(videoId, channelId, videoTitle, channelName);
 }
 
 function stopAllVideo() {
-  //document.querySelectorAll(".html5-video-player").forEach((x) => { x.remove(); })
-  document.querySelectorAll("video").forEach((vid) => { vid.pause(); console.log("preventing playback") })
+  document.querySelectorAll("video").forEach((vid) => { vid.pause(); })
 }
 
-
 async function securePage() {
-  let page = document.location.pathname;
-  let area = page.split("/")[1];
-
+  const area = document.location.pathname.split("/")[1];
 
   if (area === "shorts") {
     window.location.href = window.location.origin;
@@ -257,15 +237,60 @@ async function securePage() {
   return;
 }
 
-// TODO:fix this
 async function confirmPasswordSetup() {
-  let needPassword = !(await hasPassword());
-  if (needPassword) {
-    let password = prompt("set a password") || "password123";
-    setPassword(password);
-  }
+  if (await hasPassword()) return;
+  const app = document.getElementsByTagName("ytd-app")[0];
+  app.innerHTML = `
+                 <div id="yt-warden-modal" class="modal">
+                   <h1>Welocome to YouTube Warden</h1>
+                   <p>Please Read the documentation for features and limitation.</p>
+                   <p>You need to create a password</p>
+
+                   <form id="pwd-set-form">
+                     <input type="password" id="password" name="password" minlength="8" placeholder="password (minimum 8 characters)" required />
+                     <input type="password" id="confirm-password" name="confirm password" placeholder="confirm password"  minlength="8" required />
+                     <input type="submit" value="Set Password">
+                   </input>
+                  
+                 </div>             
+                 `;
+  app.querySelector("#yt-warden-modal form")?.addEventListener("submit", handlePasswordFormSubmit);
 }
 
+function handlePasswordFormSubmit(e: Event) {
+  e.preventDefault();
+  const form = document.querySelector("#yt-warden-modal form#pwd-set-form");
+  if (!form) return;
+  const pwdInput = <HTMLInputElement>form.querySelector("input#password");
+  const pwdConfirmInput = <HTMLInputElement>form.querySelector("input#confirm-password");
+  const password = pwdInput?.value;
+  const passwordConfirm = pwdConfirmInput?.value;
+
+  if (!password) {
+    pwdInput?.setAttribute("error", "true");
+    return;
+  }
+
+  if (!passwordConfirm) {
+    pwdConfirmInput?.setAttribute("error", "true");
+    return;
+  }
+
+  if (password !== passwordConfirm) {
+    pwdConfirmInput?.setAttribute("error", "true");
+    pwdInput?.setAttribute("error", "true");
+    return;
+  }
+
+  if (password.length < 8) {
+    pwdConfirmInput?.setAttribute("error", "true");
+    pwdInput?.setAttribute("error", "true");
+    return;
+  }
+
+  setPassword(password);
+  document.location.reload();
+}
 
 function init() {
   confirmPasswordSetup();

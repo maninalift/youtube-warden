@@ -4,7 +4,7 @@
     }
 
     /* Styles for the modal */
-    #yt-police-modal {
+    #yt-warden-modal {
       display: block;
       position: fixed;
       top: 50%;
@@ -18,7 +18,7 @@
     }
 
 
-#yt-police-modal .seperator {
+#yt-warden-modal .seperator {
   width: 100%;
   padding: 0pt;
   margin-top: 15px;
@@ -26,19 +26,19 @@
   border-top: 3pt solid #666;
 }
 
-#yt-police-modal > h1 {
+#yt-warden-modal > h1 {
   color: red;
   text-align: center;
   width: 100%;
 } 
 
 
-#yt-police-modal  .btn-group {
+#yt-warden-modal  .btn-group {
   width: 100%;
   text-align: center;
 }
 
-#yt-police-modal button {
+#yt-warden-modal button {
   margin: 5pt;
   padding: 5pt;
   border-radius: 8pt;

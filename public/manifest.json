@@ -3,7 +3,7 @@
   "permissions": [
     "storage"
   ],
-  "name": "YouTube Police",
+  "name": "YouTube Warden",
   "version": "0.1.0",
   "description": "Restrict youtube access to whitelisted channels or videos. Uses a password. Note you will need to prevent access to disabling extensions.",
   "author": "Casper Clemence",
@@ -12,18 +12,19 @@
   },
   "content_scripts": [
     {
-      "css": [
-        "styles.css"
-      ],
-      "js": [
-        "page.js"
-      ],
       "matches": [
         "https://*.youtube.com/*"
       ],
       "exclude_matches": [
         "https://music.youtube.com/*"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "js": [
+        "page.js"
       ]
     }
-  ]
+  ],
+  "options_page": "options.html"
 }
