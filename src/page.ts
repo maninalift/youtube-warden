@@ -1,3 +1,5 @@
+import { canWatch, setPassword, checkPassword, hasPassword, allow, type AllowKind } from './common';
+
 window.onload = init;
 
 // TODO: handle shorts 
@@ -14,105 +16,9 @@ window.onload = init;
 
 let currentApprovedVideoId: string | null = null;
 
-type AllowKind = "all" | "channel" | "video";
-
-type AllowRecord = {
-  id: string,
-  name: string,
-  expiry?: number
-};
-
-type AllowRecordWriter = { "all": AllowRecord } | { "channel": AllowRecord } | { "video": AllowRecord };
-
-function getParameterByName(name: string, url = window.location.href) {
-  name = name.replace(/[\[\]]/g, '\\$&');
-  const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
-  const results = regex.exec(url);
-  if (!results) return null;
-  if (!results[2]) return '';
-  return decodeURIComponent(results[2].replace(/\+/g, ' '));
-}
-
-// WARN:
-// DON'T COPY THIS CODE FOR SENSITIVE APPLICATIONS
-// for a YT video blocker this may be fine 
-//1/but it's not the right way to do crypto
-/////////////////////////////////////////////////////////////
-async function hashPassword(password: string, salt: string) {
-  const pwdData = (new TextEncoder).encode(salt + password);
-  const hashBuffer = await crypto.subtle.digest("SHA-512", pwdData);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  return hashHex;
-}
-
-async function setPassword(password: string) {
-  const salt = crypto.randomUUID();
-
-  const passwordRecord = {
-    salt: salt,
-    hash: (await hashPassword(password, salt)),
-  };
-
-  await chrome.storage.sync.set({ password: passwordRecord });
-}
-
-async function hasPassword() {
-  const passwordRecord = (await chrome.storage.sync.get("password")).password;
-  return !!(passwordRecord);
-}
-
-async function clearPassword() {
-  await chrome.storage.sync.remove("password");
-}
-
-async function checkPassword(password: string) {
-  const passwordRecord = (await chrome.storage.sync.get("password")).password;
-  if (!passwordRecord) return false;
-  const thisHash = await hashPassword(password, passwordRecord.salt);
-  return (thisHash === passwordRecord.hash);
-}
-
-async function getAllowed(kind: AllowKind) {
-  const listKey = kind + "_list";
-  const allowedList = (await chrome.storage.sync.get(listKey))[listKey] || [];
-  return allowedList;
-}
-
-async function isAllowed(kind: AllowKind, id: string) {
-  const allowedList = await getAllowed(kind);
-
-  const allowedRecord = allowedList.find((x: AllowRecord) => x.id == id);
-  if (!allowedRecord) return false;
-  if (allowedRecord.expiry && allowedRecord.expiry < Date.now()) {
-    return false;
-  }
-  if (allowedRecord.expiry) {
-    // if ther is an expiry on the record, re-check the page one second after the expiry time
-    currentApprovedVideoId = null;
-    setTimeout(reCheckPage, allowedRecord.expiry - Date.now() + 1000);
-  }
-  return true;
-}
-
 function reCheckPage() {
   currentApprovedVideoId = null;
   securePage();
-}
-
-async function allow(kind: string, id: string, name: string, expiry: number | null) {
-  const listKey = kind + "_list";
-  let allowedList = (await chrome.storage.sync.get(listKey))[listKey] || [];
-
-  allowedList.push({
-    id: id,
-    name: name,
-    expiry: expiry
-  });
-  const data = { [listKey]: allowedList };
-  await chrome.storage.sync.set(data);
-
-  document.location.reload();
 }
 
 function blockWatchPage(videoId: string, channelId: string, videoTitle: string, channelName: string) {
@@ -156,7 +62,7 @@ function blockWatchPage(videoId: string, channelId: string, videoTitle: string, 
 
 }
 
-function createAllowButtonHandler(kind: string, id: string, name: string) {
+function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
   return async (_: Event) => {
 
     const password = (<HTMLInputElement>document.querySelector("#yt-warden-modal input#password"))?.value;
@@ -185,11 +91,26 @@ function createAllowButtonHandler(kind: string, id: string, name: string) {
   }
 }
 
-async function canWatch(videoId: string, channelId: string) {
-  if (await isAllowed("all", "all")) return true;
-  if (await isAllowed("channel", channelId)) return true;
-  if (await isAllowed("video", videoId)) return true;
-  return false;
+async function checkVideoAcceess(videoId: string, channelId: string) {
+  if (videoId == currentApprovedVideoId) return true;
+
+  const canWatchRecord = await canWatch(videoId, channelId);
+
+  console.log("CAN WATCH:");
+  console.log(canWatchRecord);
+
+  if (!canWatchRecord) return false;
+
+  if (canWatchRecord.expiry) {
+    // if ther is an expiry on the record, re-check the page one second after the expiry time
+    currentApprovedVideoId = null;
+    setTimeout(reCheckPage, canWatchRecord.expiry - Date.now() + 1000);
+  }
+  currentApprovedVideoId = videoId;
+
+  console.log("TRUELY CAN WATCH");
+
+  return true;
 }
 
 async function secureWatchPage() {
@@ -202,12 +123,9 @@ async function secureWatchPage() {
 
   if (!channelId || !videoId) { stopAllVideo(); return; }
 
-  if (videoId == currentApprovedVideoId) return;
+  if (await checkVideoAcceess(videoId, channelId)) return;
 
-  if (await canWatch(videoId, channelId)) {
-    currentApprovedVideoId = videoId;
-    return;
-  }
+  console.log("$$$$$$$$$$$$ how did we get here? $$$$$$$");
 
   blockWatchPage(videoId, channelId, videoTitle, channelName);
 }
