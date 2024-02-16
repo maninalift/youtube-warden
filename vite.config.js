@@ -5,6 +5,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         entryFileNames: '[name].js',
+        //manualChunks: false,
+        //inlineDynamicImports: true, // doesn't work with multiple entry points
+        //assetFileNames: '[name].[ext]'/,
+        inlineDynamicImports: false,
+        format: 'iife',
+        manualChunks: () => "_",
       },
       input:
       {

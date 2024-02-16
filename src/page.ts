@@ -13,6 +13,11 @@ window.onload = init;
 //        - clear all records
 //
 //TODO: prevent repeated password guessing
+//
+//TODO: stop any other videos on the video play page 
+//
+//TODO: find a way to cut out (even more of) the redundant checks 
+//      and just check the watch page once.
 
 let currentApprovedVideoId: string | null = null;
 
@@ -24,31 +29,33 @@ function reCheckPage() {
 function blockWatchPage(videoId: string, channelId: string, videoTitle: string, channelName: string) {
   const app = document.getElementsByTagName("ytd-app")[0];
   app.innerHTML = `
-                 <div id="yt-warden-modal" class="modal">
+                 <div id="yt-warden-modal" class="modal yt-warden-content">
                    <h1>You can't go there</h1>
                    <div id="give-up">
                      <div class="btn-group">
-                       <button id="go-back-btn">Go Back</button>
                        <button id="go-home-btn">Go Home</button>
                      </div>
                    </div>
                   <div class = "seperator"></div>
                    <div id="allow-content">
+                     <input type="password" id="password" name="password" placeholder="Enter password">
+                     <div class="btn-group">
+                       <div id="time-limit-input">
+                         <span>Time limit: </span>
+                         <input type="number" id="days" name="days" min="0" max="100" value="" placeholder="d"/>
+                         <input type="number" id="hours" name="hours" min="0" max="23" value="" placeholder="m"/>
+                         <input type="number" id="mins" name="mins" min="0" max="59" value ="" placeholder="s"/>
+                       </div>
+                     </div>
                      <div class="btn-group">
                        <p><b>Allow video: </b>${videoTitle}</p>
                        <button id="allow-video-btn">Allow Video</button>
-                       <p><b>Allow channel: </b>${channelName}</p>
+                       <p><b>Allow channel: </b><a href="/${channelId}">${channelName}</a></p>
                        <button id="allow-channel-btn">Allow Channel</button>
+                       <p><b>Allow ALL content</b> (requres a time limit)</p>
                        <button id="allow-all-btn">Allow All</button>
                      </div>
-                    <div id="time-limit">
-                       <p>Time limit:</p>
-                       <input type="days" id="days" name="days" min="0" max="100" value="0" />
-                       <input type="hours" id="hours" name="hours" min="0" max="23" value="0"/>
-                       <input type="mins" id="mins" name="mins" min="0" max="59" value ="0" />
-                     </div>
-                     <input type="password" id="password" name="password" placeholder="Enter password">
-                   </div>
+                   </input>
                  </div>             
                  `;
 
@@ -56,10 +63,22 @@ function blockWatchPage(videoId: string, channelId: string, videoTitle: string, 
   document.querySelector("button#go-home-btn")?.addEventListener("click", () => { window.location.href = window.location.origin; });
   //document.querySelector("button#go-back-btn").addEventListener("click", () => { window.history.back(); window.location.reload(); });
 
-  document.querySelector("button#allow-channel-btn")?.addEventListener("click", createAllowButtonHandler("video", videoId, videoTitle));
-  document.querySelector("button#allow-video-btn")?.addEventListener("click", createAllowButtonHandler("channel", channelId, channelName));
+  document.querySelector("button#allow-video-btn")?.addEventListener("click", createAllowButtonHandler("video", videoId, videoTitle));
+  document.querySelector("button#allow-channel-btn")?.addEventListener("click", createAllowButtonHandler("channel", channelId, channelName));
   document.querySelector("button#allow-all-btn")?.addEventListener("click", createAllowButtonHandler("all", "all", "Everything"));
 
+  (<NodeListOf<HTMLInputElement>>document.querySelectorAll("#time-limit-input input[type=number]")).forEach(input => {
+    input.addEventListener("input", timeLimitStatusUpdate);
+  });
+}
+
+function timeLimitStatusUpdate() {
+  let hasInput = false;
+  (<NodeListOf<HTMLInputElement>>document.querySelectorAll("#time-limit-input input[type=number]")).forEach(input => {
+    if (input.value && (Number(input.value) > 0)) hasInput = true;
+    console.log(input.value);
+  });
+  document.querySelector("#time-limit-input")?.classList.toggle("has-input", hasInput);
 }
 
 function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
@@ -85,19 +104,17 @@ function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
 
     const expiry = (allowMins === 0) ? null : (Date.now() + allowMins * 60 * 1000);
 
-    allow(kind, id, name, expiry);
+    await allow(kind, id, name, expiry);
 
     document.location.reload();
   }
 }
 
+
 async function checkVideoAcceess(videoId: string, channelId: string) {
   if (videoId == currentApprovedVideoId) return true;
 
   const canWatchRecord = await canWatch(videoId, channelId);
-
-  console.log("CAN WATCH:");
-  console.log(canWatchRecord);
 
   if (!canWatchRecord) return false;
 
@@ -108,12 +125,21 @@ async function checkVideoAcceess(videoId: string, channelId: string) {
   }
   currentApprovedVideoId = videoId;
 
-  console.log("TRUELY CAN WATCH");
-
   return true;
 }
 
+let checking = false;
+
 async function secureWatchPage() {
+  // since function is async and may be called on every page 
+  // modification, we guard to prevent it from being run 
+  // multiple times simultaniously
+  if (checking) {
+    stopMainVideo();
+    return;
+  }
+  checking = true;
+
   const channelHref = document.querySelector("ytd-watch-metadata #channel-name a")?.getAttribute("href");
   const channelId = channelHref && (new URL(channelHref, window.location.origin)).pathname?.slice(1);
   const channelName = document.querySelector("ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
@@ -121,20 +147,29 @@ async function secureWatchPage() {
   const videoId = document.querySelector("[video-id]:has(video.html5-main-video)")?.getAttribute("video-id");
   const videoTitle = document.querySelector("ytd-watch-metadata #title")?.textContent?.trim() || "Unknown";
 
-  if (!channelId || !videoId) { stopAllVideo(); return; }
+  if (!channelId || !videoId) { stopMainVideo(); checking = false; return; }
 
-  if (await checkVideoAcceess(videoId, channelId)) return;
 
-  console.log("$$$$$$$$$$$$ how did we get here? $$$$$$$");
+  if (await checkVideoAcceess(videoId, channelId)) {
+    checking = false;
+    return;
+  }
 
   blockWatchPage(videoId, channelId, videoTitle, channelName);
+  checking = false;
 }
 
-function stopAllVideo() {
-  document.querySelectorAll("video").forEach((vid) => { vid.pause(); })
+function stopMainVideo() {
+  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video.html5-main-video")).forEach((vid) => { vid.pause(); })
+}
+
+function stopAllButMainVideo() {
+  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video:not(.html5-main-video)")).forEach((vid) => { vid.pause(); })
 }
 
 async function securePage() {
+  stopAllButMainVideo();
+
   const area = document.location.pathname.split("/")[1];
 
   if (area === "shorts") {
@@ -147,11 +182,7 @@ async function securePage() {
     return;
   }
 
-  // channel
-  // feed
-  // ...
-
-  stopAllVideo();
+  stopMainVideo();
   return;
 }
 
@@ -159,7 +190,7 @@ async function confirmPasswordSetup() {
   if (await hasPassword()) return;
   const app = document.getElementsByTagName("ytd-app")[0];
   app.innerHTML = `
-                 <div id="yt-warden-modal" class="modal">
+                 <div id="yt-warden-modal" class="modal yt-warden-content">
                    <h1>Welocome to YouTube Warden</h1>
                    <p>Please Read the documentation for features and limitation.</p>
                    <p>You need to create a password</p>
