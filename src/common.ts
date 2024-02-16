@@ -1,4 +1,3 @@
-
 // WARN:
 // DON'T COPY THIS CODE 
 // while suitible for a YT video blocker extension
@@ -85,6 +84,7 @@ async function storeAllowed(kind: AllowKind, allowed: Map<string, AllowRecord>) 
 }
 
 export async function isAllowed(kind: AllowKind, id: string) {
+
   const allowed = await getAllowed(kind);
 
   const allowedRecord = allowed.get(id);

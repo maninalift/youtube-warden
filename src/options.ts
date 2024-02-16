@@ -1,7 +1,6 @@
 import { clearPassword } from "./common";
 window.onload = init;
 
-
 function init() {
   console.log("Yo!");
 
