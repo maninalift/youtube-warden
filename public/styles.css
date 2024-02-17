@@ -59,10 +59,16 @@
   touch-action: manipulation;
 }
 
-.yt-warden-content #allow-content button {
+.yt-warden-content button.serious {
     background-color: rgb(120, 60, 130);
     border-color: rgb(120, 60, 130);
 }
+
+.yt-warden-content button.dangerous {
+    background-color: rgb(180, 40, 40);
+    border-color: rgb(180, 40, 40);
+}
+
 
 .yt-warden-content button:hover {
   box-shadow: rgba(0, 0, 0, .15) 0 3px 9px 0;

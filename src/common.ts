@@ -30,19 +30,24 @@ export type AllowKind = "all" | "channel" | "video";
 export async function allow(kind: AllowKind, id: string, name: string, expiry: number | null) {
   let allowed = await getAllowed(kind);
 
-  allowed.set(id, {
+  // remove any existing allow records for this content
+  allowed = allowed.filter((a) => (a.id != id));
+
+  allowed.push({
     id: id,
     name: name,
-    expiry: expiry
+    expiry: expiry,
+    created: Date.now()
   });
 
   await storeAllowed(kind, allowed);
 }
 
-type AllowRecord = {
+export type AllowRecord = {
   id: string,
   name: string,
-  expiry: number | null
+  expiry: number | null,
+  created: number
 };
 
 // type AllowRecordWriter = { AllowType: AllowRecord };
@@ -72,22 +77,20 @@ export async function checkPassword(password: string) {
 
 export async function getAllowed(kind: AllowKind) {
   const listKey = kind + "_list";
-  const allowedList = <[[string, AllowRecord]]>(await chrome.storage.local.get(listKey))[listKey] || [];
-  const allowedMap = new Map(allowedList);
-  return allowedMap;
+  const allowedList = <AllowRecord[]>((await chrome.storage.local.get(listKey))[listKey] || []);
+  return allowedList;
 }
 
-async function storeAllowed(kind: AllowKind, allowed: Map<string, AllowRecord>) {
+export async function storeAllowed(kind: AllowKind, allowed: AllowRecord[]) {
   const listKey = kind + "_list";
-  const allowedList = Array.from(allowed);
-  await chrome.storage.local.set({ [listKey]: allowedList });
+  await chrome.storage.local.set({ [listKey]: allowed });
 }
 
 export async function isAllowed(kind: AllowKind, id: string) {
 
   const allowed = await getAllowed(kind);
 
-  const allowedRecord = allowed.get(id);
+  const allowedRecord = allowed.find((r) => r.id == id);
 
   if (!allowedRecord) return false;
 

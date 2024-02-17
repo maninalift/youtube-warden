@@ -1,4 +1,4 @@
-import { canWatch, setPassword, checkPassword, hasPassword, allow, type AllowKind } from './common';
+import { allow, canWatch, checkPassword, hasPassword, setPassword, type AllowKind } from './common';
 
 window.onload = init;
 
@@ -7,17 +7,11 @@ window.onload = init;
 //
 //
 //TODO: options page
-//        - password secured
-//        - password change
 //        - individual record deletion
 //        - clear all records
 //
 //TODO: prevent repeated password guessing
 //
-//TODO: stop any other videos on the video play page 
-//
-//TODO: find a way to cut out (even more of) the redundant checks 
-//      and just check the watch page once.
 
 let currentApprovedVideoId: string | null = null;
 
@@ -43,17 +37,17 @@ function blockWatchPage(videoId: string, channelId: string, videoTitle: string, 
                        <div id="time-limit-input">
                          <span>Time limit: </span>
                          <input type="number" id="days" name="days" min="0" max="100" value="" placeholder="d"/>
-                         <input type="number" id="hours" name="hours" min="0" max="23" value="" placeholder="m"/>
-                         <input type="number" id="mins" name="mins" min="0" max="59" value ="" placeholder="s"/>
+                         <input type="number" id="hours" name="hours" min="0" max="23" value="" placeholder="h"/>
+                         <input type="number" id="mins" name="mins" min="0" max="59" value ="" placeholder="m"/>
                        </div>
                      </div>
                      <div class="btn-group">
                        <p><b>Allow video: </b>${videoTitle}</p>
-                       <button id="allow-video-btn">Allow Video</button>
+                       <button id="allow-video-btn" class="serious">Allow Video</button>
                        <p><b>Allow channel: </b><a href="/${channelId}">${channelName}</a></p>
-                       <button id="allow-channel-btn">Allow Channel</button>
+                       <button id="allow-channel-btn" class="serious">Allow Channel</button>
                        <p><b>Allow ALL content</b> (requres a time limit)</p>
-                       <button id="allow-all-btn">Allow All</button>
+                       <button id="allow-all-btn" class="serious">Allow All</button>
                      </div>
                    </input>
                  </div>             
@@ -242,6 +236,8 @@ function handlePasswordFormSubmit(e: Event) {
 }
 
 function init() {
+  //chrome.storage.local.clear();
+
   confirmPasswordSetup();
 
   let body = document.querySelector("body");

@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "tsc && node ./build.js"
   },
+  "dependencies": {
+    "simple-datatables": "^9.0.0",
+    "fuse.js": "^7.0.0"
+  },
   "devDependencies": {
+    "@types/simple-datatables": "^3.2.3",
     "@types/chrome": "^0.0.260",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
