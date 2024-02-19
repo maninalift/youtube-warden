@@ -44,7 +44,6 @@
   box-shadow: rgba(0, 0, 0, .1) 0 2px 4px 0;
   box-sizing: border-box;
   color: #fff;
-  cursor: pointer;
   font-size: 16px;
   font-variant: small-caps;
   font-weight: 400;
@@ -56,25 +55,34 @@
   transition: transform 150ms, box-shadow 150ms, filter 250ms;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.yt-warden-content button:not(.disabled) {
+  cursor: pointer;
   touch-action: manipulation;
 }
 
-.yt-warden-content button.serious {
-    background-color: rgb(120, 60, 130);
-    border-color: rgb(120, 60, 130);
-}
-
-.yt-warden-content button.dangerous {
-    background-color: rgb(180, 40, 40);
-    border-color: rgb(180, 40, 40);
-}
-
-
-.yt-warden-content button:hover {
+.yt-warden-content button:not(.disabled):hover {
   box-shadow: rgba(0, 0, 0, .15) 0 3px 9px 0;
   transform: translateY(-2px);
   filter: brightness(85%);
 }
+
+.yt-warden-content button.disabled {
+    background-color: rgb(80, 80, 80);
+    border-color: rgb(80, 80, 80);
+}
+
+.yt-warden-content button.serious:not(.disabled) { 
+    background-color: rgb(120, 60, 130);
+    border-color: rgb(120, 60, 130);
+}
+
+.yt-warden-content button.dangerous:not(.disabled)  {
+    background-color: rgb(180, 40, 40);
+    border-color: rgb(180, 40, 40);
+}
+
 
 .yt-warden-content input::-webkit-outer-spin-button,
 .yt-warden-content input::-webkit-inner-spin-button {
@@ -125,7 +133,7 @@
   border-radius: 6px;
   border: 1px solid #888;
   margin: 12px 0 0 0;
-
+}
 
 .yt-warden-content #time-limit-input.has-input {
   border-color: #13aa52; 
@@ -135,4 +143,8 @@
   width: 100%;
   margin-top: 20px;
   margin-bottom: 20px;
+}
+
+.yt-warden-content table tr td {
+  padding: 10px;
 }

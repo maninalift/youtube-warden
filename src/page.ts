@@ -5,13 +5,9 @@ window.onload = init;
 // TODO: handle shorts 
 //           - separate approval for shorts and longs for a channel
 //
-//
 //TODO: options page
 //        - individual record deletion
 //        - clear all records
-//
-//TODO: prevent repeated password guessing
-//
 
 let currentApprovedVideoId: string | null = null;
 
@@ -47,7 +43,7 @@ function blockWatchPage(videoId: string, channelId: string, videoTitle: string, 
                        <p><b>Allow channel: </b><a href="/${channelId}">${channelName}</a></p>
                        <button id="allow-channel-btn" class="serious">Allow Channel</button>
                        <p><b>Allow ALL content</b> (requres a time limit)</p>
-                       <button id="allow-all-btn" class="serious">Allow All</button>
+                       <button id="allow-all-btn" class="serious disabled">Allow All</button>
                      </div>
                    </input>
                  </div>             
@@ -73,17 +69,13 @@ function timeLimitStatusUpdate() {
     console.log(input.value);
   });
   document.querySelector("#time-limit-input")?.classList.toggle("has-input", hasInput);
+  document.querySelector("#allow-all-btn")?.classList.toggle("disabled", !hasInput);
 }
 
 function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
   return async (_: Event) => {
 
     const password = (<HTMLInputElement>document.querySelector("#yt-warden-modal input#password"))?.value;
-
-    if (!(await checkPassword(password))) {
-      alert("password incorrect!");
-      return;
-    }
 
     const days = Number((<HTMLInputElement>document.querySelector("#yt-warden-modal #days"))?.value) || 0;
     const hours = Number((<HTMLInputElement>document.querySelector("#yt-warden-modal #hours"))?.value) || 0;
@@ -97,6 +89,24 @@ function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
     }
 
     const expiry = (allowMins === 0) ? null : (Date.now() + allowMins * 60 * 1000);
+    const passwordResult = await checkPassword(password);
+    if (!passwordResult.ok) {
+      if (passwordResult.reason == "timeout") {
+        const delay = passwordResult.timeout - Date.now();
+        const s = ~~(delay / 1000) % 60;
+        const m = ~~(delay / (60 * 1000));
+        const sText = (s > 0) ? ` ${s} seconds` : "";
+        const mText = (m > 0) ? ` ${m} minutes` : "";
+        alert(`Too many password attempts, try again in${mText}${sText}!`);
+      }
+      if (passwordResult.reason == "password") {
+        alert("password incorrect!");
+      }
+      if (passwordResult.reason == "not-set") {
+        alert("password not set!");
+      }
+      return;
+    }
 
     await allow(kind, id, name, expiry);
 
@@ -236,7 +246,7 @@ function handlePasswordFormSubmit(e: Event) {
 }
 
 function init() {
-  //chrome.storage.local.clear();
+  // chrome.storage.local.clear();
 
   confirmPasswordSetup();
 

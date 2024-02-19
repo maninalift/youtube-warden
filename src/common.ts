@@ -12,8 +12,66 @@ export async function hashPassword(password: string, salt: string) {
   return hashHex;
 }
 
+type PasswordRecord = {
+  salt: string,
+  hash: string,
+  timeout: number,
+  consecutiveFailures: number,
+  lastTimeout: number
+}
+
 export async function clearPassword() {
   await chrome.storage.local.remove("password");
+}
+
+export async function setPassword(password: string) {
+  const salt = crypto.randomUUID();
+  const passwordRecord: PasswordRecord = {
+    salt: salt,
+    hash: (await hashPassword(password, salt)),
+    timeout: 0,
+    consecutiveFailures: 0,
+    lastTimeout: 0
+  };
+
+  await chrome.storage.local.set({ password: passwordRecord });
+}
+
+export async function hasPassword() {
+  const passwordRecord = (await chrome.storage.local.get("password")).password;
+  return !!(passwordRecord);
+}
+
+
+// the order highest to lowest threshold is required
+const passwordTimeouts = [
+  { threshold: 20, frequency: 2, timeout: 30 * 60 * 1000 },
+  { threshold: 10, frequency: 2, timeout: 5 * 60 * 1000 },
+  { threshold: 4, frequency: 2, timeout: 60 * 1000 },
+];
+
+
+export async function checkPassword(password: string) {
+  let passwordRecord = (await chrome.storage.local.get("password")).password;
+  if (!passwordRecord) return { ok: false, reason: "not-set" };
+  if (passwordRecord.timeout > Date.now()) return { ok: false, reason: "timeout", timeout: passwordRecord.timeout }
+  const thisHash = await hashPassword(password, passwordRecord.salt);
+  if (thisHash != passwordRecord.hash) {
+    passwordRecord.consecutiveFailures += 1;
+    const timeout = passwordTimeouts.find((pt) => (passwordRecord.consecutiveFailures >= pt.threshold));
+    if (timeout && (passwordRecord.consecutiveFailures - passwordRecord.lastTimeout >= timeout.frequency)) {
+      passwordRecord.lastTimeout = passwordRecord.consecutiveFailures;
+      passwordRecord.timeout = Date.now() + timeout.timeout;
+    }
+    chrome.storage.local.set({ password: passwordRecord });
+    return { ok: false, reason: "password" };
+  }
+  if (passwordRecord.consecutiveFailures > 0) {
+    passwordRecord.consecutiveFailures = 0;
+    passwordRecord.lastTimeout = 0;
+    chrome.storage.local.set({ password: passwordRecord });
+  }
+  return { ok: true };
 }
 
 export function getParameterByName(name: string, url = window.location.href) {
@@ -50,30 +108,6 @@ export type AllowRecord = {
   created: number
 };
 
-// type AllowRecordWriter = { AllowType: AllowRecord };
-
-export async function setPassword(password: string) {
-  const salt = crypto.randomUUID();
-
-  const passwordRecord = {
-    salt: salt,
-    hash: (await hashPassword(password, salt)),
-  };
-
-  await chrome.storage.local.set({ password: passwordRecord });
-}
-
-export async function hasPassword() {
-  const passwordRecord = (await chrome.storage.local.get("password")).password;
-  return !!(passwordRecord);
-}
-
-export async function checkPassword(password: string) {
-  const passwordRecord = (await chrome.storage.local.get("password")).password;
-  if (!passwordRecord) return false;
-  const thisHash = await hashPassword(password, passwordRecord.salt);
-  return (thisHash === passwordRecord.hash);
-}
 
 export async function getAllowed(kind: AllowKind) {
   const listKey = kind + "_list";
