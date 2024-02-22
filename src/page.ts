@@ -25,6 +25,8 @@ window.onload = init;
 //      then starting it again
 //
 //TODO: remove cosole.logs and commented code
+//
+//TODO: add data_version = 1 to the chrome.store.local
 
 let currentApproval: { id: string, status: "approved" | "blocked" } | null = null;
 
@@ -231,16 +233,16 @@ function unblockWatchPage() {
 }
 
 function getChannelInfo(): Info | null {
-  const href = document.querySelector("ytd-watch-metadata #channel-name a")?.getAttribute("href");
+  const href = document.querySelector("#content ytd-watch-metadata #channel-name a")?.getAttribute("href");
   const id = href && (new URL(href, window.location.origin)).pathname?.slice(1);
-  const name = document.querySelector("ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
+  const name = document.querySelector("#content ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
   if (!id) return null;
   return { id, name };
 }
 
 function getVideoInfo(): Info | null {
-  const id = document.querySelector("[video-id]:has(video.html5-main-video)")?.getAttribute("video-id");
-  const name = document.querySelector("ytd-watch-metadata #title")?.textContent?.trim() || "Unknown";
+  const id = document.querySelector("#content [video-id]:has(video.html5-main-video)")?.getAttribute("video-id");
+  const name = document.querySelector("#content ytd-watch-metadata #title")?.textContent?.trim() || "Unknown";
   if (!id) return null;
   return { id, name }
 }
@@ -249,14 +251,14 @@ function getVideoInfo(): Info | null {
 function getPlaylistInfo(videoId: string): Info | null {
   // the selected playlist item should be the currently playing item
   // this prevents someone from manually setting the 
-  const selectedPlaylistItem = document.querySelector("ytd-playlist-panel-renderer ytd-playlist-panel-video-renderer[selected]");
+  const selectedPlaylistItem = document.querySelector("#content ytd-playlist-panel-renderer ytd-playlist-panel-video-renderer[selected]");
   const selectedPlaylistItemHref = selectedPlaylistItem?.querySelector("a#wc-endpoint")?.getAttribute("href")
   if (!selectedPlaylistItemHref) return null;
   const selectedPlaylistItemId = getParameterByName("v", selectedPlaylistItemHref);
   if (!selectedPlaylistItemId) return null;
   if (videoId !== selectedPlaylistItemId) return null;
 
-  const playListLink = document.querySelector("ytd-playlist-panel-renderer .header .title a");
+  const playListLink = document.querySelector("#content ytd-playlist-panel-renderer .header .title a");
   const playListHref = playListLink?.getAttribute("href");
   console.log(playListHref);
   if (!playListHref) return null;
@@ -298,7 +300,7 @@ async function secureWatchPage() {
   const approvalId = getApprovalId(video, channel, playlist);
 
   if (approvalId === currentApproval?.id) {
-    console.log(`already ${currentApproval.status}`);
+    console.log(`already ${currentApproval.status} ${currentApproval.id}`);
     if (currentApproval.status === "blocked") stopMainVideo();
     return;
   }
@@ -308,7 +310,7 @@ async function secureWatchPage() {
   checking = false;
 
   if (!canWatchRecord.ok) {
-    console.log(`BLOCKING videoId:${video.id}`);
+    console.log(`BLOCKING ${approvalId}`);
     console.log(video.id);
     console.log(canWatchRecord);
     blockWatchPage(video, channel, playlist);
