@@ -1,4 +1,9 @@
 
+.yt-warden-content {
+  font-family: "Akzidenz Grotesk BQ Medium", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 12pt;
+}
+
 #yt-warden-modal {
   display: block;
   position: fixed;
@@ -11,7 +16,6 @@
   border: 3pt solid #ccc;
   z-index: 1;
 }
-
 
 .yt-warden-content .seperator {
   width: 100%;
@@ -29,13 +33,33 @@
   margin-bottom: 20px;
 }
 
+.yt-warden-content p {
+    margin: 20px 0 10px 0;
+}
 
-.yt-warden-content .yt-warden-content button, .yt-warden-content p, 
-.yt-warden-content h1, .yt-warden-content h2, .yt-warden-content h3,
+.yt-warden-content button,
+.yt-warden-content p, 
+.yt-warden-content h1, 
+.yt-warden-content h2, 
+.yt-warden-content h3,
 .yt-warden-content div {
-  font-family: "Akzidenz Grotesk BQ Medium", -apple-system, BlinkMacSystemFont, sans-serif;
   text-align: center;
 }
+
+.yt-warden-content .error-message {
+  font-size: 14px;
+  color: red;
+  font-weight: bold;
+  margin: 5px;
+}
+
+.yt-warden-content  .btn-group {
+  width: 100%;
+  text-align: center;
+  margin-top: 15px;
+}
+
+/* -------------------  [buttons] ---------- */
 
 .yt-warden-content button {
   background-color: #13aa52;
@@ -57,32 +81,135 @@
   -webkit-user-select: none;
 }
 
-.yt-warden-content button:not(.disabled) {
+.yt-warden-content button:not([disabled]), .yt-warden-content .tabbed-area .tab {
   cursor: pointer;
   touch-action: manipulation;
 }
 
-.yt-warden-content button:not(.disabled):hover {
+.yt-warden-content button:not([disabled]):hover {
   box-shadow: rgba(0, 0, 0, .15) 0 3px 9px 0;
   transform: translateY(-2px);
   filter: brightness(85%);
 }
 
-.yt-warden-content button.disabled {
-    background-color: rgb(80, 80, 80);
-    border-color: rgb(80, 80, 80);
+.yt-warden-content button[disabled] {
+  background-color: rgb(80, 80, 80);
+  border-color: rgb(80, 80, 80);
 }
 
-.yt-warden-content button.serious:not(.disabled) { 
-    background-color: rgb(120, 60, 130);
-    border-color: rgb(120, 60, 130);
+.yt-warden-content button.serious:not([disabled]) { 
+  background-color: rgb(120, 60, 130);
+  border-color: rgb(120, 60, 130);
 }
 
-.yt-warden-content button.dangerous:not(.disabled)  {
-    background-color: rgb(180, 40, 40);
-    border-color: rgb(180, 40, 40);
+.yt-warden-content button.dangerous:not([disabled])  {
+  background-color: rgb(180, 40, 40);
+  border-color: rgb(180, 40, 40);
 }
 
+/* ------------- [TABS] -----------------------------*/
+
+.yt-warden-content .tabbed-area .tabs {
+  width: 100%;
+  background-color: rgb(60, 60, 60);
+  color: rgb(200, 200, 200);
+  border-top: 2px solid rgb(200, 200, 200);
+}
+
+.yt-warden-content .tabbed-area .tab {
+  display: inline-block;
+  transition: background-color 0.8s ease, color 0.8s ease;
+  padding: 8px 12px 8px 8px;
+}
+
+.yt-warden-content .tabbed-area .tab.sorted::after {
+  display: block;
+  float: right;
+}
+
+.yt-warden-content .tabbed-area .tab.sorted.asc::after {
+content: "▲";
+}
+
+.yt-warden-content .tabbed-area .tab.sorted.dsc::after {
+content: "▼";
+}
+
+.yt-warden-content .tabbed-area .tab.active {
+  background-color: rgb(255, 255, 255);
+  color: rgb(0, 0, 0);  
+}
+
+.yt-warden-content .tabbed-area .tabbed-page {
+  transition: 
+  opacity 0.8s ease,
+  transform 0.8s ease   ;
+  
+  opacity: 0;
+  transform: scale(0.01);
+  transform-origin: top left;
+}
+
+.yt-warden-content .tabbed-area .tabbed-page.active {
+  z-index: 1;
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* --------------- [CHECKBOXES] --------------------------- */ 
+
+.yt-warden-content input[type='checkbox']:before,
+.yt-warden-content input[type='checkbox']:after {
+  box-sizing: border-box;
+}
+.yt-warden-content input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--form-background);
+  margin: 0;
+  margin-right: 4px;
+
+  font: inherit;
+  color: currentColor;
+  width: 1.15em;
+  height: 1.15em;
+  border: 0.15em solid currentColor;
+  border-radius: 0.15em;
+  transform: translateY(-0.075em);
+
+  display: inline-grid;
+  place-content: center;
+}
+
+.yt-warden-content input[type="checkbox"]::before {
+  content: "";
+  width: 0.65em;
+  height: 0.65em;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+  transform-origin: bottom left;
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em var(--form-control-color);
+  background-color: CanvasText;
+}
+
+.yt-warden-content input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+.yt-warden-content input[type="checkbox"]:focus {
+  outline: max(2px, 0.15em) solid currentColor;
+  outline-offset: max(2px, 0.15em);
+}
+
+.yt-warden-content input[type="checkbox"]:disabled {
+  --form-control-color: var(--form-control-disabled);
+
+  color: var(--form-control-disabled);
+  cursor: not-allowed;
+}
+
+/* ------------  [NUMBER INPUT]  -----------------------------------------*/ 
 
 .yt-warden-content input::-webkit-outer-spin-button,
 .yt-warden-content input::-webkit-inner-spin-button {
@@ -94,31 +221,22 @@
   -moz-appearance: textfield;
 }
 
+/* ---------------- [ INPUTS ] --------------------------  */
+
 .yt-warden-content input {
   height: 24px;
   border: 1px solid black;
   border-radius: 6px;
   text-align: center;
+  font-size: inherit;
 }
 
-.yt-warden-content p {
-    margin: 20px 0 10px 0;
-    font-size: 12px;
-}
-
-.yt-warden-content  .btn-group {
-  width: 100%;
-  text-align: center;
-}
+/* ---------[ TIME LIMIT INPUT ] ------------------*/
 
 .yt-warden-content #time-limit-input input[type=number] {
   margin: 0;
   width: 20px;
   height 30px;
-}
-
-.yt-warden-content #time-limit-input label { 
-  font-size: 14px;
 }
 
 .yt-warden-content #time-limit-input label +  input[type=number] {
@@ -132,18 +250,14 @@
   padding: 4px;
   border-radius: 6px;
   border: 1px solid #888;
-  margin: 12px 0 0 0;
 }
 
 .yt-warden-content #time-limit-input.has-input {
-  border-color: #13aa52; 
+  border-color: rgba(19,170, 82, 1); 
+  box-shadow: rgba(19,170, 82, 1) 0 0 3px;
 }
 
-.yt-warden-content #time-limit {
-  width: 100%;
-  margin-top: 20px;
-  margin-bottom: 20px;
-}
+/* -------------------- [ TABLE ] ------------------*/ 
 
 .yt-warden-content table tr td {
   padding: 10px;

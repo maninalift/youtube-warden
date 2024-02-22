@@ -12,6 +12,8 @@ export async function hashPassword(password: string, salt: string) {
   return hashHex;
 }
 
+export type Info = { id: string, name: string };
+
 type PasswordRecord = {
   salt: string,
   hash: string,
@@ -54,7 +56,7 @@ const passwordTimeouts = [
 export async function checkPassword(password: string) {
   let passwordRecord = (await chrome.storage.local.get("password")).password;
   if (!passwordRecord) return { ok: false, reason: "not-set" };
-  if (passwordRecord.timeout > Date.now()) return { ok: false, reason: "timeout", timeout: passwordRecord.timeout }
+  if (passwordRecord.timeout > Date.now()) return { ok: false, reason: "timeout", timeout: passwordRecord.timeout, consecutiveFailures: passwordRecord.consecutiveFailures }
   const thisHash = await hashPassword(password, passwordRecord.salt);
   if (thisHash != passwordRecord.hash) {
     passwordRecord.consecutiveFailures += 1;
@@ -64,7 +66,7 @@ export async function checkPassword(password: string) {
       passwordRecord.timeout = Date.now() + timeout.timeout;
     }
     chrome.storage.local.set({ password: passwordRecord });
-    return { ok: false, reason: "password" };
+    return { ok: false, reason: "password", timeout: passwordRecord.timeout, consecutiveFailures: passwordRecord.consecutiveFailures };
   }
   if (passwordRecord.consecutiveFailures > 0) {
     passwordRecord.consecutiveFailures = 0;
@@ -83,7 +85,7 @@ export function getParameterByName(name: string, url = window.location.href) {
   return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
 
-export type AllowKind = "all" | "channel" | "video";
+export type AllowKind = "all" | "channel" | "video" | "playlist";
 
 export async function allow(kind: AllowKind, id: string, name: string, expiry: number | null) {
   let allowed = await getAllowed(kind);
@@ -99,6 +101,13 @@ export async function allow(kind: AllowKind, id: string, name: string, expiry: n
   });
 
   await storeAllowed(kind, allowed);
+}
+
+export async function removeAllow(kind: AllowKind, id: string) {
+  let allowed = await getAllowed(kind);
+  allowed = allowed.filter((a) => (a.id != id));
+  await storeAllowed(kind, allowed);
+  return allowed;
 }
 
 export type AllowRecord = {
@@ -126,18 +135,26 @@ export async function isAllowed(kind: AllowKind, id: string) {
 
   const allowedRecord = allowed.find((r) => r.id == id);
 
-  if (!allowedRecord) return false;
+  if (!allowedRecord) return { ok: false, expiry: null };
 
-  if (!allowedRecord.expiry) return { expiry: null };
+  if (!allowedRecord.expiry) return { ok: true, expiry: null };
 
-  if (allowedRecord.expiry < Date.now()) return false;
+  if (allowedRecord.expiry < Date.now()) return { ok: false, expiry: null };
 
-  return { expiry: allowedRecord.expiry };
+  return { ok: true, expiry: allowedRecord.expiry };
 }
 
-export async function canWatch(videoId: string, channelId: string) {
-  console.log(`checking ${videoId}  --   ${channelId}`)
-  return (await isAllowed("all", "all"))
-    || (await isAllowed("channel", channelId))
-    || (await isAllowed("video", videoId));
+export async function canWatch(videoId: string, channelId: string, playlistId: string | null) {
+  console.log(`checking ${videoId}  --   ${channelId}`);
+  const all = await isAllowed("all", "all");
+  if (all.ok) return all;
+  const chn = await isAllowed("channel", channelId);
+  if (chn.ok) return chn;
+  const vid = await isAllowed("video", videoId);
+  if (vid.ok) return vid;
+  if (playlistId) {
+    const vid = await isAllowed("playlist", playlistId);
+    if (vid.ok) return vid;
+  }
+  return { ok: false, expiry: null };
 }
