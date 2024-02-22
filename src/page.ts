@@ -3,8 +3,7 @@ import { allow, canWatch, checkPassword, hasPassword, setPassword, getParameterB
 window.onload = init;
 
 // TODO: handle shorts 
-//           - get videoId and channelId on shorts page
-//           - make exclude-shorts work
+//           - make exclude-shorts work ?
 //
 //TODO: options page
 //        - individual record deletion
@@ -15,25 +14,17 @@ window.onload = init;
 //
 //TODO: password creation form styling
 //
-//TODO: add playlist handling
-//        - find playlist id if it exists
-//        - add button to form
-//        -
-//
-//
-//TODO: stop jitter that comes from stopping a video
-//      then starting it again
-//
 //TODO: remove cosole.logs and commented code
 //
 //TODO: add data_version = 1 to the chrome.store.local
 
-let currentApproval: { id: string, status: "approved" | "blocked" } | null = null;
+type Poisin = { poisined: boolean };
+let currentApproval: { id: string, status: "approved" | "blocked" } | { id: string, status: "checking", poisin: Poisin } | null = null;
 
-
-let checking = false;
+//let checking = false;
 
 function reCheckPage() {
+  if (currentApproval?.status == "checking") currentApproval.poisin.poisined = true;
   currentApproval = null;
   securePage();
 }
@@ -59,9 +50,6 @@ function stopYTApp() {
 }
 
 function blockWatchPage(video: Info, channel: Info, playlist: Info | null) {
-  let approvalId = getApprovalId(video, channel, playlist);
-  if (currentApproval?.id === approvalId && currentApproval?.status === "blocked") return;
-  currentApproval = { id: approvalId, status: "blocked" };
 
   let injectNode = getInjectNode();
 
@@ -249,8 +237,8 @@ function getVideoInfo(): Info | null {
 
 
 function getPlaylistInfo(videoId: string): Info | null {
-  // the selected playlist item should be the currently playing item
-  // this prevents someone from manually setting the 
+  // the selected playlist item should be the currently playing item this prevents someone from manually setting the video id in the URL
+  // to a video that is not in playlist
   const selectedPlaylistItem = document.querySelector("#content ytd-playlist-panel-renderer ytd-playlist-panel-video-renderer[selected]");
   const selectedPlaylistItemHref = selectedPlaylistItem?.querySelector("a#wc-endpoint")?.getAttribute("href")
   if (!selectedPlaylistItemHref) return null;
@@ -277,15 +265,6 @@ function getApprovalId(video: Info, channel: Info, playlist: Info | null) {
 }
 
 async function secureWatchPage() {
-  // since function is async and may be called on every page 
-  // modification, we guard to prevent it from being run 
-  // multiple times simultaniously
-  if (checking) {
-    console.log("already checking...");
-    stopMainVideo();
-    return;
-  }
-
   const channel = getChannelInfo();
   const video = getVideoInfo();
 
@@ -296,36 +275,42 @@ async function secureWatchPage() {
   }
 
   const playlist = getPlaylistInfo(video.id);
-
   const approvalId = getApprovalId(video, channel, playlist);
 
+  // checking approved or blocked this same item
   if (approvalId === currentApproval?.id) {
     console.log(`already ${currentApproval.status} ${currentApproval.id}`);
-    if (currentApproval.status === "blocked") stopMainVideo();
+    if (currentApproval.status === "approved") return;
+    stopMainVideo();
     return;
   }
 
-  checking = true;
+  // if checking a different item, cancel it
+  if (currentApproval?.status === "checking") {
+    console.log(`cancelling ${currentApproval.id}`);
+    currentApproval.poisin.poisined = true;
+  }
+
+  const myPoisin = { poisined: false };
+  currentApproval = { id: approvalId, status: "checking", poisin: myPoisin };
+
   const canWatchRecord = await canWatch(video.id, channel.id, (playlist && playlist.id));
-  checking = false;
+
+  if (myPoisin.poisined) return;
 
   if (!canWatchRecord.ok) {
     console.log(`BLOCKING ${approvalId}`);
-    console.log(video.id);
-    console.log(canWatchRecord);
+    currentApproval = { id: approvalId, status: "blocked" };
     blockWatchPage(video, channel, playlist);
     return;
   };
 
   if (canWatchRecord.expiry) {
-    // if ther is an expiry on the record, re-check the page one second after the expiry time
     setTimeout(reCheckPage, canWatchRecord.expiry - Date.now() + 1000);
   }
   console.log(`VIDEO [${video.id}] IS ALLOWED`);
-  //currentApprovedApprovalId = approvalId;
   currentApproval = { id: approvalId, status: "approved" };
   unblockWatchPage();
-
 }
 
 function playMainVideo() {
