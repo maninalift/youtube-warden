@@ -21,8 +21,6 @@ window.onload = init;
 type Poisin = { poisined: boolean };
 let currentApproval: { id: string, status: "approved" | "blocked" } | { id: string, status: "checking", poisin: Poisin } | null = null;
 
-//let checking = false;
-
 function reCheckPage() {
   if (currentApproval?.status == "checking") currentApproval.poisin.poisined = true;
   currentApproval = null;
@@ -32,7 +30,6 @@ function reCheckPage() {
 function getInjectNode() {
   let injectNode = document.querySelector("#yt-warden-inject");
   if (injectNode) return injectNode;
-
 
   injectNode = document.createElement("div");
   injectNode.id = "yt-warden-inject";
@@ -50,7 +47,6 @@ function stopYTApp() {
 }
 
 function blockWatchPage(video: Info, channel: Info, playlist: Info | null) {
-
   let injectNode = getInjectNode();
 
   stopYTApp();
@@ -141,8 +137,6 @@ function blockWatchPage(video: Info, channel: Info, playlist: Info | null) {
   }
 }
 
-
-
 function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
   return async (_: Event) => {
 
@@ -229,29 +223,30 @@ function getChannelInfo(): Info | null {
 }
 
 function getVideoInfo(): Info | null {
-  const id = document.querySelector("#content [video-id]:has(video.html5-main-video)")?.getAttribute("video-id");
-  const name = document.querySelector("#content ytd-watch-metadata #title")?.textContent?.trim() || "Unknown";
+  // #ytd-player
+  // WTF - this 
+  //const id = document.querySelector("#content [video-id]:has(video.html5-main-video)")?.getAttribute("video-id");
+  const id = document.querySelector("#content [video-id]:has(video.html5-main-video):not([hidden] *")?.getAttribute("video-id");
+  //id ||= document.querySelector("#content .short-video-container video.html5-main-video")?.
+  const name = document.querySelector("#content ytd-watch-metadata #title:not([hidden] *)")?.textContent?.trim() || "Unknown";
   if (!id) return null;
   return { id, name }
 }
 
-
 function getPlaylistInfo(videoId: string): Info | null {
   // the selected playlist item should be the currently playing item this prevents someone from manually setting the video id in the URL
   // to a video that is not in playlist
-  const selectedPlaylistItem = document.querySelector("#content ytd-playlist-panel-renderer ytd-playlist-panel-video-renderer[selected]");
+  const selectedPlaylistItem = document.querySelector("#content ytd-playlist-panel-renderer ytd-playlist-panel-video-renderer[selected]:not([hidden] *)");
   const selectedPlaylistItemHref = selectedPlaylistItem?.querySelector("a#wc-endpoint")?.getAttribute("href")
   if (!selectedPlaylistItemHref) return null;
   const selectedPlaylistItemId = getParameterByName("v", selectedPlaylistItemHref);
   if (!selectedPlaylistItemId) return null;
   if (videoId !== selectedPlaylistItemId) return null;
 
-  const playListLink = document.querySelector("#content ytd-playlist-panel-renderer .header .title a");
+  const playListLink = document.querySelector("#content ytd-playlist-panel-renderer .header .title a:not([hidden] *)");
   const playListHref = playListLink?.getAttribute("href");
-  console.log(playListHref);
   if (!playListHref) return null;
   const id = getParameterByName("list", playListHref);
-  console.log(id);
   if (!id) return null;
 
   let name = playListLink?.textContent || "Unknown";
@@ -314,15 +309,15 @@ async function secureWatchPage() {
 }
 
 function playMainVideo() {
-  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video.html5-main-video")).forEach((vid) => { vid.play(); })
+  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("#ytd-player video.html5-main-video:not([hidden] *)")).forEach((vid) => { vid.play(); })
 }
 
 function stopMainVideo() {
-  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video.html5-main-video")).forEach((vid) => { vid.pause(); })
+  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("#ytd-player video.html5-main-video")).forEach((vid) => { vid.pause(); })
 }
 
 function stopAllButMainVideo() {
-  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video:not(.html5-main-video)")).forEach((vid) => { vid.pause(); })
+  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video:not(#ytd-player .html5-main-video)")).forEach((vid) => { vid.pause(); })
 }
 
 function stopAllVideo() {
