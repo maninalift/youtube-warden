@@ -17,9 +17,12 @@ window.onload = init;
 //TODO: remove cosole.logs and commented code
 //
 //TODO: add data_version = 1 to the chrome.store.local
+//
+//TODO: kill the miniplayer
 
 type Poisin = { poisined: boolean };
 let currentApproval: { id: string, status: "approved" | "blocked" } | { id: string, status: "checking", poisin: Poisin } | null = null;
+type WatchAreas = "watch" | "shorts";
 
 function reCheckPage() {
   if (currentApproval?.status == "checking") currentApproval.poisin.poisined = true;
@@ -42,7 +45,7 @@ function getInjectNode() {
 }
 
 function stopYTApp() {
-  document.querySelector("ytd-app")?.toggleAttribute("hidden", true);
+  //document.querySelector("ytd-app")?.toggleAttribute("hidden", true);
   stopAllVideo();
 }
 
@@ -206,7 +209,6 @@ function removeBlockingOverlay() {
   let injectNode = getInjectNode();
   injectNode.innerHTML = '';
   document.querySelector("ytd-app")?.removeAttribute("hidden");
-
 }
 
 function unblockWatchPage() {
@@ -214,21 +216,50 @@ function unblockWatchPage() {
   playMainVideo();
 }
 
-function getChannelInfo(): Info | null {
-  const href = document.querySelector("#content ytd-watch-metadata #channel-name a")?.getAttribute("href");
-  const id = href && (new URL(href, window.location.origin)).pathname?.slice(1);
-  const name = document.querySelector("#content ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
+function getChannelInfo(area: WatchAreas): Info | null {
+  let href: string | null | undefined;
+  let id: string | null | undefined;
+  let name: string | null | undefined;
+
+  switch (area) {
+    case "watch":
+      href = document.querySelector("#content ytd-watch-metadata #channel-name a")?.getAttribute("href");
+      name = document.querySelector("#content ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
+      break;
+    case "shorts":
+      name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name:not([hidden]):not([hidden] *) a")?.textContent?.trim() || "Unknown";
+      href = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name a[href]:not([hidden]):not([hidden] *)")?.textContent?.trim();
+      break;
+  }
+  id = href && (new URL(href, window.location.origin)).pathname?.slice(1);
+  console.log("sort chan");
+  console.log(name);
+  console.log(id);
   if (!id) return null;
   return { id, name };
 }
 
-function getVideoInfo(): Info | null {
-  // #ytd-player
-  // WTF - this 
-  //const id = document.querySelector("#content [video-id]:has(video.html5-main-video)")?.getAttribute("video-id");
-  const id = document.querySelector("#content [video-id]:has(video.html5-main-video):not([hidden] *")?.getAttribute("video-id");
-  //id ||= document.querySelector("#content .short-video-container video.html5-main-video")?.
-  const name = document.querySelector("#content ytd-watch-metadata #title:not([hidden] *)")?.textContent?.trim() || "Unknown";
+function getVideoInfo(area: WatchAreas): Info | null {
+  // - is there a good reason that I'm not just getting the video id from the document.location URL?
+  let href: string | null | undefined;
+  let id: string | null | undefined;
+  let name: string | null | undefined;
+
+  switch (area) {
+    case "watch":
+      id = document.querySelector("#content [video-id]:has(video.html5-main-video):not([hidden] *):not([hidden])")?.getAttribute("video-id");
+      name = document.querySelector("#content ytd-watch-metadata #title:not([hidden] *):not([hidden])")?.textContent?.trim() || "Unknown";
+      break;
+    case "shorts":
+      name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container .title:not([hidden]):not([hidden] *)")?.textContent?.trim() || "Unknown";
+      href = document.querySelector("a.ytp-title-link[href]:not([hidden]):not(hidden *)")?.getAttribute("href");
+      id = href && (new URL(href, window.location.origin)).pathname?.split("/").pop();
+      console.log("sort vid");
+      console.log(name);
+      console.log(id);
+      break;
+  }
+
   if (!id) return null;
   return { id, name }
 }
@@ -236,14 +267,14 @@ function getVideoInfo(): Info | null {
 function getPlaylistInfo(videoId: string): Info | null {
   // the selected playlist item should be the currently playing item this prevents someone from manually setting the video id in the URL
   // to a video that is not in playlist
-  const selectedPlaylistItem = document.querySelector("#content ytd-playlist-panel-renderer ytd-playlist-panel-video-renderer[selected]:not([hidden] *)");
+  const selectedPlaylistItem = document.querySelector("#content ytd-playlist-panel-renderer ytd-playlist-panel-video-renderer[selected]:not([hidden] *):not([hidden])");
   const selectedPlaylistItemHref = selectedPlaylistItem?.querySelector("a#wc-endpoint")?.getAttribute("href")
   if (!selectedPlaylistItemHref) return null;
   const selectedPlaylistItemId = getParameterByName("v", selectedPlaylistItemHref);
   if (!selectedPlaylistItemId) return null;
   if (videoId !== selectedPlaylistItemId) return null;
 
-  const playListLink = document.querySelector("#content ytd-playlist-panel-renderer .header .title a:not([hidden] *)");
+  const playListLink = document.querySelector("#content ytd-playlist-panel-renderer .header .title a:not([hidden] *):not([hidden])");
   const playListHref = playListLink?.getAttribute("href");
   if (!playListHref) return null;
   const id = getParameterByName("list", playListHref);
@@ -259,17 +290,13 @@ function getApprovalId(video: Info, channel: Info, playlist: Info | null) {
   return `${video.id}&${channel.id}&${playlist.id}`;
 }
 
-async function secureWatchPage() {
-  const channel = getChannelInfo();
-  const video = getVideoInfo();
+async function secureWatchPage(area: "watch" | "shorts") {
 
-  if (!channel || !video) {
-    console.log(`missing info`);
-    stopMainVideo();
-    return;
-  }
+  const channel = getChannelInfo(area);
+  const video = getVideoInfo(area);
+  if (!channel || !video) { stopMainVideo(); return; }
+  const playlist = (area == "watch") ? getPlaylistInfo(video.id) : null;
 
-  const playlist = getPlaylistInfo(video.id);
   const approvalId = getApprovalId(video, channel, playlist);
 
   // checking approved or blocked this same item
@@ -279,6 +306,11 @@ async function secureWatchPage() {
     stopMainVideo();
     return;
   }
+
+  console.log(`*****************************************************8
+   *****************************************************
+   ****************************************************
+   ******************************************************`);
 
   // if checking a different item, cancel it
   if (currentApproval?.status === "checking") {
@@ -308,20 +340,29 @@ async function secureWatchPage() {
   unblockWatchPage();
 }
 
+
+//function makeMainVideoSelector(container: string) { return `#content ${container} video.html5-main-video`; }
+//function makeMainVideoSelector(container: string) { return `#content ${container} video.html5-main-video:not([hidden] *):not([hidden])`; }
+//const mainWatchVidSelector = makeMainVideoSelector("#ytd-player");
+//const mainShortVidSelector = makeMainVideoSelector("#ytd-reel-video-renderer[is-active]");
+//const mainVidSelector = mainWatchVidSelector + ", " + mainShortVidSelector;
+//const notMainVideoSelector = `video:not(${mainVidSelector})`;
+
+
 function playMainVideo() {
-  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("#ytd-player video.html5-main-video:not([hidden] *)")).forEach((vid) => { vid.play(); })
+  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll(mainVidSelector)).forEach((vid) => { vid.play(); })
 }
 
 function stopMainVideo() {
-  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("#ytd-player video.html5-main-video")).forEach((vid) => { vid.pause(); })
+  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll("#ytd-player video.html5-main-video")).forEach((vid) => { vid.pause(); })
 }
 
 function stopAllButMainVideo() {
-  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video:not(#ytd-player .html5-main-video)")).forEach((vid) => { vid.pause(); })
+  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll(notMainVideoSelector)).forEach((vid) => { vid.pause(); })
 }
 
 function stopAllVideo() {
-  (<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video")).forEach((vid) => { vid.pause(); })
+  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video")).forEach((vid) => { vid.pause(); })
 }
 
 async function securePage() {
@@ -331,12 +372,12 @@ async function securePage() {
 
   if (area === "shorts") {
     //window.location.href = window.location.origin;
-    secureWatchPage();
+    secureWatchPage(area);
     return;
   };
 
   if (area === "watch") {
-    secureWatchPage();
+    secureWatchPage(area);
     return;
   }
 
