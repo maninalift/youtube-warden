@@ -1,4 +1,4 @@
-import { allow, canWatch, checkPassword, hasPassword, setPassword, getParameterByName, type AllowKind, type Info } from './common';
+import { allow, canWatch, checkPassword, hasPassword, setPassword, getParameterByName, type AllowKind, type Info, isAllowed } from './common';
 
 window.onload = init;
 
@@ -47,6 +47,10 @@ function getInjectNode() {
 function stopYTApp() {
   //document.querySelector("ytd-app")?.toggleAttribute("hidden", true);
   stopAllVideo();
+}
+
+function blockShortsPage() {
+
 }
 
 function blockWatchPage(video: Info, channel: Info, playlist: Info | null) {
@@ -150,7 +154,8 @@ function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
 
     const password = passwordInput.value;
     if (!password) {
-      alert("You need to enter the password!");
+      errEl.innerHTML = `<div class='error-message'>You need to enter the password!</div>`;
+      setTimeout(() => { errEl.innerHTML = ''; }, 2000);
       return;
     }
 
@@ -216,50 +221,37 @@ function unblockWatchPage() {
   playMainVideo();
 }
 
-function getChannelInfo(area: WatchAreas): Info | null {
-  let href: string | null | undefined;
-  let id: string | null | undefined;
-  let name: string | null | undefined;
+/*
+function getShortChannelInfo(): Info | null {
+  let name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name:not([hidden]):not([hidden] *) a")?.textContent?.trim() || "Unknown";
+  let href = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name a[href]:not([hidden]):not([hidden] *)")?.textContent?.trim();
+  let id = href && (new URL(href, window.location.origin)).pathname?.slice(1);
+  if (!id) return null;
+  return { id, name };
+}
+*/
 
-  switch (area) {
-    case "watch":
-      href = document.querySelector("#content ytd-watch-metadata #channel-name a")?.getAttribute("href");
-      name = document.querySelector("#content ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
-      break;
-    case "shorts":
-      name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name:not([hidden]):not([hidden] *) a")?.textContent?.trim() || "Unknown";
-      href = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name a[href]:not([hidden]):not([hidden] *)")?.textContent?.trim();
-      break;
-  }
-  id = href && (new URL(href, window.location.origin)).pathname?.slice(1);
-  console.log("sort chan");
-  console.log(name);
-  console.log(id);
+function getChannelInfo(): Info | null {
+  let href = document.querySelector("#content ytd-watch-metadata #channel-name a")?.getAttribute("href");
+  let name = document.querySelector("#content ytd-watch-metadata #channel-name a")?.textContent || "Unknown";
+  let id = href && (new URL(href, window.location.origin)).pathname?.slice(1);
   if (!id) return null;
   return { id, name };
 }
 
-function getVideoInfo(area: WatchAreas): Info | null {
-  // - is there a good reason that I'm not just getting the video id from the document.location URL?
-  let href: string | null | undefined;
-  let id: string | null | undefined;
-  let name: string | null | undefined;
+/*
+function getShortVideoInfo(): Info | null {
+  let name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container .title:not([hidden]):not([hidden] *)")?.textContent?.trim() || "Unknown";
+  let href = document.querySelector("a.ytp-title-link[href]:not([hidden]):not(hidden *)")?.getAttribute("href");
+  let id = href && (new URL(href, window.location.origin)).pathname?.split("/").pop();
+  if (!id) return null;
+  return { id, name }
+}
+*/
 
-  switch (area) {
-    case "watch":
-      id = document.querySelector("#content [video-id]:has(video.html5-main-video):not([hidden] *):not([hidden])")?.getAttribute("video-id");
-      name = document.querySelector("#content ytd-watch-metadata #title:not([hidden] *):not([hidden])")?.textContent?.trim() || "Unknown";
-      break;
-    case "shorts":
-      name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container .title:not([hidden]):not([hidden] *)")?.textContent?.trim() || "Unknown";
-      href = document.querySelector("a.ytp-title-link[href]:not([hidden]):not(hidden *)")?.getAttribute("href");
-      id = href && (new URL(href, window.location.origin)).pathname?.split("/").pop();
-      console.log("sort vid");
-      console.log(name);
-      console.log(id);
-      break;
-  }
-
+function getVideoInfo(): Info | null {
+  let id = document.querySelector("#content [video-id]:has(video.html5-main-video):not([hidden] *):not([hidden])")?.getAttribute("video-id");
+  let name = document.querySelector("#content ytd-watch-metadata #title:not([hidden] *):not([hidden])")?.textContent?.trim() || "Unknown";
   if (!id) return null;
   return { id, name }
 }
@@ -290,12 +282,52 @@ function getApprovalId(video: Info, channel: Info, playlist: Info | null) {
   return `${video.id}&${channel.id}&${playlist.id}`;
 }
 
-async function secureWatchPage(area: "watch" | "shorts") {
 
-  const channel = getChannelInfo(area);
-  const video = getVideoInfo(area);
+async function secureShortsPage() {
+  const approvalId = "shorts";
+
+  // checking approved or blocked this same item
+  if (approvalId === currentApproval?.id) {
+    console.log(`already ${currentApproval.status} ${currentApproval.id}`);
+    if (currentApproval.status === "approved") return;
+    stopMainVideo();
+    return;
+  }
+
+  // if checking a different item, cancel it
+  if (currentApproval?.status === "checking") {
+    console.log(`cancelling ${currentApproval.id}`);
+    currentApproval.poisin.poisined = true;
+  }
+
+  const myPoisin = { poisined: false };
+  currentApproval = { id: approvalId, status: "checking", poisin: myPoisin };
+
+  const canWatchRecord = await isAllowed("all", "all");
+
+  if (myPoisin.poisined) return;
+
+  if (!canWatchRecord.ok) {
+    console.log(`BLOCKING ${approvalId}`);
+    currentApproval = { id: approvalId, status: "blocked" };
+    blockShortsPage();
+    return;
+  };
+
+  if (canWatchRecord.expiry) {
+    setTimeout(reCheckPage, canWatchRecord.expiry - Date.now() + 1000);
+  }
+  console.log(`SHORTS ARE ALLOWED`);
+  currentApproval = { id: approvalId, status: "approved" };
+  unblockWatchPage();
+}
+
+async function secureWatchPage() {
+  const channel = getChannelInfo();
+  const video = getVideoInfo();
   if (!channel || !video) { stopMainVideo(); return; }
-  const playlist = (area == "watch") ? getPlaylistInfo(video.id) : null;
+
+  const playlist = getPlaylistInfo(video.id);
 
   const approvalId = getApprovalId(video, channel, playlist);
 
@@ -306,11 +338,6 @@ async function secureWatchPage(area: "watch" | "shorts") {
     stopMainVideo();
     return;
   }
-
-  console.log(`*****************************************************8
-   *****************************************************
-   ****************************************************
-   ******************************************************`);
 
   // if checking a different item, cancel it
   if (currentApproval?.status === "checking") {
@@ -372,12 +399,12 @@ async function securePage() {
 
   if (area === "shorts") {
     //window.location.href = window.location.origin;
-    secureWatchPage(area);
+    secureShortsPage();
     return;
   };
 
   if (area === "watch") {
-    secureWatchPage(area);
+    secureWatchPage();
     return;
   }
 
