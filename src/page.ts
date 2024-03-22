@@ -22,9 +22,10 @@ window.onload = init;
 
 type Poisin = { poisined: boolean };
 let currentApproval: { id: string, status: "approved" | "blocked" } | { id: string, status: "checking", poisin: Poisin } | null = null;
-type WatchAreas = "watch" | "shorts";
+//type WatchAreas = "watch" | "shorts";
 
 function reCheckPage() {
+  //TODO: if its a shorts page just reload?
   if (currentApproval?.status == "checking") currentApproval.poisin.poisined = true;
   currentApproval = null;
   securePage();
@@ -49,16 +50,13 @@ function stopYTApp() {
   stopAllVideo();
 }
 
-function blockShortsPage() {
-
-}
-
-function blockWatchPage(video: Info, channel: Info, playlist: Info | null) {
+function blockWatchPage(video: Info | null, channel: Info | null, playlist: Info | null) {
   let injectNode = getInjectNode();
 
   stopYTApp();
 
   injectNode.innerHTML = `
+                 <div class="yt-warden-overlay"></div>
                  <div id="yt-warden-modal" class="modal yt-warden-content">
                    <h1>You can't go there</h1>
                    <div id="give-up">
@@ -85,18 +83,18 @@ function blockWatchPage(video: Info, channel: Info, playlist: Info | null) {
                        <label for="exclude-shorts"><input type="checkbox" id="exclude-shorts" name="exclude-shorts" value="exclude-shorts">Exclude shorts</label>
                      </div>
                      <div class="btn-group">
-                       <p><b>Allow video: </b>${video.name}</p>
-                       <button id="allow-video-btn" class="serious">Allow Video</button>
-                       <p><b>Allow channel: </b><a target='_blank' href="/${channel.id}">${channel.name}</a></p>
-                       <button id="allow-channel-btn" class="serious">Allow Channel</button>
-                       <p><b>Allow ALL content</b> (requres a time limit)</p>
-                       <button id="allow-all-btn" class="serious">Allow All</button>
+                       ${video ? ('<p><b>Allow Video:</b> ' + video.name + '</p>') : ''}
+                       ${video ? '<button id="allow-video-btn" class="serious">Allow Video</button>' : ''}
                        ${playlist ? ("<p><b>Allow Playlist:</b> " + playlist.name + "</p>") : ""}
                        ${playlist ? "<button id='allow-playlist-btn' class='serious'>Allow Playlist</button>" : ""}
-                     </div>
-                   </div>
+                       ${channel ? ('<p><b>Allow Channel:</b> <a target="_blank" href="/' + channel.id + '">' + channel.name + '</a > </p>') : ''}
+                       ${channel ? "<button id='allow-channel-btn' class='serious'>Allow Channel</button>" : ""}
+                       <p><b>Allow ALL content </b> (requres a time limit)</p>
+                       <button id="allow-all-btn" class="serious" > Allow All </button>
+                    </div>
+                 </div>
                  </div>             
-                 `;
+      `;
 
 
   const homeBtn = document.querySelector("button#go-home-btn");
@@ -105,16 +103,20 @@ function blockWatchPage(video: Info, channel: Info, playlist: Info | null) {
   const backBtn = document.querySelector("button#go-back-btn");
   backBtn?.addEventListener("click", () => { window.history.back(); });
 
-  const vidBtn = document.querySelector("button#allow-video-btn");
-  vidBtn?.addEventListener("click", createAllowButtonHandler("video", video.id, video.name));
+  if (video) {
+    const vidBtn = document.querySelector("button#allow-video-btn");
+    vidBtn?.addEventListener("click", createAllowButtonHandler("video", video.id, video.name));
+  }
 
   if (playlist) {
     const playlistBtn = document.querySelector("button#allow-playlist-btn");
     playlistBtn?.addEventListener("click", createAllowButtonHandler("playlist", playlist.id, playlist.name));
   }
 
-  const channelBtn = document.querySelector("button#allow-channel-btn");
-  channelBtn?.addEventListener("click", createAllowButtonHandler("channel", channel.id, channel.name));
+  if (channel) {
+    const channelBtn = document.querySelector("button#allow-channel-btn");
+    channelBtn?.addEventListener("click", createAllowButtonHandler("channel", channel.id, channel.name));
+  }
 
   const allBtn = document.querySelector("button#allow-all-btn");
   allBtn?.addEventListener("click", createAllowButtonHandler("all", "all", "Everything"));
@@ -154,7 +156,7 @@ function createAllowButtonHandler(kind: AllowKind, id: string, name: string) {
 
     const password = passwordInput.value;
     if (!password) {
-      errEl.innerHTML = `<div class='error-message'>You need to enter the password!</div>`;
+      errEl.innerHTML = `< div class='error-message' > You need to enter the password! < /div>`;
       setTimeout(() => { errEl.innerHTML = ''; }, 2000);
       return;
     }
@@ -217,6 +219,7 @@ function removeBlockingOverlay() {
 }
 
 function unblockWatchPage() {
+  console.log("UNBLOCKING");
   removeBlockingOverlay();
   playMainVideo();
 }
@@ -288,15 +291,16 @@ async function secureShortsPage() {
 
   // checking approved or blocked this same item
   if (approvalId === currentApproval?.id) {
-    console.log(`already ${currentApproval.status} ${currentApproval.id}`);
-    if (currentApproval.status === "approved") return;
-    stopMainVideo();
+    if (currentApproval.status === "approved") {
+      playMainVideo();
+    } else {
+      stopMainVideo();
+    }
     return;
   }
 
   // if checking a different item, cancel it
   if (currentApproval?.status === "checking") {
-    console.log(`cancelling ${currentApproval.id}`);
     currentApproval.poisin.poisined = true;
   }
 
@@ -308,16 +312,14 @@ async function secureShortsPage() {
   if (myPoisin.poisined) return;
 
   if (!canWatchRecord.ok) {
-    console.log(`BLOCKING ${approvalId}`);
     currentApproval = { id: approvalId, status: "blocked" };
-    blockShortsPage();
+    blockWatchPage(null, null, null);
     return;
   };
 
   if (canWatchRecord.expiry) {
     setTimeout(reCheckPage, canWatchRecord.expiry - Date.now() + 1000);
   }
-  console.log(`SHORTS ARE ALLOWED`);
   currentApproval = { id: approvalId, status: "approved" };
   unblockWatchPage();
 }
@@ -369,27 +371,38 @@ async function secureWatchPage() {
 
 
 //function makeMainVideoSelector(container: string) { return `#content ${container} video.html5-main-video`; }
-//function makeMainVideoSelector(container: string) { return `#content ${container} video.html5-main-video:not([hidden] *):not([hidden])`; }
-//const mainWatchVidSelector = makeMainVideoSelector("#ytd-player");
-//const mainShortVidSelector = makeMainVideoSelector("#ytd-reel-video-renderer[is-active]");
-//const mainVidSelector = mainWatchVidSelector + ", " + mainShortVidSelector;
-//const notMainVideoSelector = `video:not(${mainVidSelector})`;
+function makeMainVideoSelector(container: string) { return `#content ${container} video.html5-main-video:not([hidden] *):not([hidden])`; }
+const mainWatchVidSelector = makeMainVideoSelector("#ytd-player");
+const mainShortVidSelector = makeMainVideoSelector("ytd-reel-video-renderer[is-active]");
+const mainVidSelector = mainWatchVidSelector + ", " + mainShortVidSelector;
+//const mainVidSelectorCatholic = "#ytd-player video.html5-main-video";
+const notMainVideoSelector = `video:not(${mainVidSelector})`;
 
+function forVidElements(selector: string, f: (el: HTMLVideoElement) => void) {
+  setTimeout(() => {
+    const els = <NodeListOf<HTMLVideoElement>>document.querySelectorAll(selector);
+    els.forEach(f);
+  }, 100)
+}
 
 function playMainVideo() {
-  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll(mainVidSelector)).forEach((vid) => { vid.play(); })
+  console.log("play main");
+  forVidElements(mainVidSelector, (vid) => { vid.play(); });
 }
 
 function stopMainVideo() {
-  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll("#ytd-player video.html5-main-video")).forEach((vid) => { vid.pause(); })
+  console.log("stop main");
+  forVidElements(mainVidSelector, (vid) => { vid.pause(); });
 }
 
 function stopAllButMainVideo() {
-  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll(notMainVideoSelector)).forEach((vid) => { vid.pause(); })
+  console.log("stop all but main");
+  forVidElements(notMainVideoSelector, (vid) => { vid.pause(); });
 }
 
 function stopAllVideo() {
-  //(<NodeListOf<HTMLVideoElement>>document.querySelectorAll("video")).forEach((vid) => { vid.pause(); })
+  console.log("stop all ");
+  forVidElements("video", (vid) => { vid.pause(); });
 }
 
 async function securePage() {
@@ -414,25 +427,31 @@ async function securePage() {
 }
 
 async function confirmPasswordSetup() {
-  if (await hasPassword()) return;
+  console.log("checking pasword");
+  if (await hasPassword()) return true;
+  console.log("no password");
   stopYTApp();
   const injectNode = getInjectNode();
   injectNode.innerHTML = `
+                 <div class="yt-warden-overlay"></div>
                  <div id="yt-warden-modal" class="modal yt-warden-content">
                    <h1>Welocome to YouTube Warden</h1>
                    <p>Please Read the documentation for features and limitation.</p>
                    <p>You need to create a password</p>
 
                    <form id="pwd-set-form">
-                     <input type="password" id="password" name="password" minlength="8" placeholder="password (minimum 8 characters)" required />
+                     <input type="password" id="password" name="password" minlength="8" placeholder="password (min 8 characters)" required />
                      <br>
                      <input type="password" id="confirm-password" name="confirm password" placeholder="confirm password"  minlength="8" required />
+                     <br>
                      <input type="submit" value="Set Password">
                    </input>
                   
                  </div>             
                  `;
   injectNode.querySelector("#yt-warden-modal form")?.addEventListener("submit", handlePasswordFormSubmit);
+  console.log("yeah and stuff");
+  return false;
 }
 
 function handlePasswordFormSubmit(e: Event) {
@@ -470,10 +489,10 @@ function handlePasswordFormSubmit(e: Event) {
   document.location.reload();
 }
 
-function init() {
+async function init() {
   // chrome.storage.local.clear();
 
-  confirmPasswordSetup();
+  if (!(await confirmPasswordSetup())) return;
 
   let body = document.querySelector("body");
   if (!body) return;

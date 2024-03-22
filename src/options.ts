@@ -117,8 +117,7 @@ function initTable(tableAreaEl: Element, kind: AllowKind) {
   });
 }
 
-function initTables(containerEl: Element) {
-  containerEl.innerHTML = `
+/*
 <div class='tabbed-area'>
   <div class='tabs'>
     <div class='tab active' tab-id='video'>Allowed Videos</div>
@@ -132,8 +131,34 @@ function initTables(containerEl: Element) {
     <div tab-id='all' class='tabbed-page'></div>
     <div tab-id='playlist' class='tabbed-page'></div>
   </div>
+</div>
+
+
+
+  */
+
+function initTables(containerEl: Element) {
+  containerEl.innerHTML = `
+<div class="tabs">
+ <input class="input" name="table-tabs" type="radio" id="video-tab" checked="checked"/>
+ <label class="label" for="video-tab">Video</label>
+ <div class='panel' tab-id='video'></div>
+
+ <input class="input" name="table-tabs" type="radio" id="playlist-tab"/>
+ <label class="label" for="playlist-tab">Playlist</label>
+ <div class='panel' tab-id='playlist'></div>
+
+ <input class="input" name="table-tabs" type="radio" id="channel-tab"/>
+ <label class="label" for="channel-tab">Channel</label>
+ <div class='panel' tab-id='channel'></div>
+ 
+<input class="input" name="table-tabs" type="radio" id="all-tab"/>
+ <label class="label" for="all-tab">All</label>
+ <div class='panel' tab-id='all'></div>
+
 </div>`;
 
+  /*
   containerEl.querySelectorAll(".tab").forEach((tab) => {
     let id = <AllowKind>tab.getAttribute("tab-id");
     tab.addEventListener("click", () => {
@@ -142,8 +167,9 @@ function initTables(containerEl: Element) {
       });
     });
   })
+  */
 
-  containerEl.querySelectorAll(".tabbed-page").forEach((el) => {
+  containerEl.querySelectorAll(".panel").forEach((el) => {
     const kind = <AllowKind>el.getAttribute("tab-id");
     initTable(el, kind);
   });

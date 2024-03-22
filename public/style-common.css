@@ -1,4 +1,7 @@
 
+@import url('https://fonts.googleapis.com/css?fami1ly=Source+Sans+Pro:400,400i,700,700i');
+@import url('https://fonts.googleapis.com/css?family=Bree+Serif');
+
 .yt-warden-content {
   font-family: "Akzidenz Grotesk BQ Medium", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 12pt;
@@ -14,7 +17,7 @@
   border-radius: 10pt;
   background-color: #eee;
   border: 3pt solid #ccc;
-  z-index: 1;
+  z-index: 100000;
 }
 
 .yt-warden-content .seperator {
@@ -34,7 +37,7 @@
 }
 
 .yt-warden-content p {
-    margin: 20px 0 10px 0;
+    margin: 10px 0 10px 0;
 }
 
 .yt-warden-content button,
@@ -107,8 +110,8 @@
   border-color: rgb(180, 40, 40);
 }
 
-/* ------------- [TABS] -----------------------------*/
-
+/* ------------- [TABS] 1 -----------------------------*/
+/*
 .yt-warden-content .tabbed-area .tabs {
   width: 100%;
   background-color: rgb(60, 60, 60);
@@ -155,6 +158,100 @@ content: "▼";
   opacity: 1;
   transform: scale(1);
 }
+*/
+
+/* ------------- [TABS] 2 -----------------------------*/
+
+
+.yt-warden-content {
+
+* {
+  box-sizing: border-box;
+}
+body {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  background: #efefef;
+  font-family: 'Source Sans Pro', sans-serif;
+  color: #333;
+}
+@media (min-width: 600px) {
+  body {
+    padding: 60px 10px;
+  }
+}
+/*
+h1 {
+  margin: 0;
+  font-family: 'Bree Serif', serif;
+  font-size: 36px;
+}
+
+p {
+  margin-top: 20px;
+  margin-bottom: 0;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1.5;
+}
+*/
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 700px;
+  background: #e5e5e5;
+  box-shadow: 0 48px 80px -32px rgba(0,0,0,0.3);
+}
+.input {
+  position: absolute;
+  opacity: 0;
+}
+.label {
+  width: 100%;
+  padding: 20px 30px;
+  background: #e5e5e5;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 18px;
+  color: #7f7f7f;
+  transition: background 0.1s, color 0.1s;
+}
+.label:hover {
+  background: #d8d8d8;
+}
+.label:active {
+  background: #ccc;
+}
+.input:focus + .label {
+  z-index: 1;
+}
+.input:checked + .label {
+  background: #fff;
+  color: #000;
+}
+@media (min-width: 600px) {
+  .label {
+    width: auto;
+  }
+}
+.panel {
+  display: none;
+  padding: 20px 30px 30px;
+  background: #fff;
+}
+@media (min-width: 600px) {
+  .panel {
+    order: 99;
+  }
+}
+.input:checked + .label + .panel {
+  display: block;
+}
+
+
+
+}
 
 /* --------------- [CHECKBOXES] --------------------------- */ 
 
@@ -162,6 +259,7 @@ content: "▼";
 .yt-warden-content input[type='checkbox']:after {
   box-sizing: border-box;
 }
+
 .yt-warden-content input[type="checkbox"] {
   -webkit-appearance: none;
   appearance: none;
@@ -231,6 +329,19 @@ content: "▼";
   font-size: inherit;
 }
 
+
+.yt-warden-overlay {
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+  z-index: 80000;
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
 /* ---------[ TIME LIMIT INPUT ] ------------------*/
 
 .yt-warden-content #time-limit-input input[type=number] {
@@ -261,4 +372,19 @@ content: "▼";
 
 .yt-warden-content table tr td {
   padding: 10px;
+}
+
+
+/* ---------------------------------------------- */ 
+
+#yt-warden-modal #pwd-set-form {
+  text-align: center;
+
+  input#password {
+    margin: 20px 5px 8px 5px;
+  }
+  input#confirm-password{
+    margin: 0 5px 20px 5px;
+  }
+
 }

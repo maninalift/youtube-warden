@@ -19,7 +19,8 @@
         "https://music.youtube.com/*"
       ],
       "css": [
-        "styles.css"
+        "style-common.css",
+        "style-page.css"
       ],
       "js": [
         "page.js"
