@@ -145,7 +145,7 @@ export async function isAllowed(kind: AllowKind, id: string) {
 }
 
 export async function canWatch(videoId: string | null, channelId: string | null, playlistId: string | null) {
-  console.log(`checking ${videoId}  --   ${channelId}`);
+  //console.log(`checking ${videoId}  --   ${channelId}`);
 
   const all = await isAllowed("all", "all");
   if (all.ok) return all;

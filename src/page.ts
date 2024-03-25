@@ -216,7 +216,6 @@ function removeBlockingOverlay() {
 }
 
 function unblockWatchPage() {
-  console.log("UNBLOCKING");
   removeBlockingOverlay();
   playMainVideo();
 }
@@ -288,15 +287,15 @@ function getApprovalId(video: Info | null, channel: Info | null, playlist: Info 
 
 async function secureShortsPage() {
 
-  const channel = null; //getShortChannelInfo();
-  const video = null; //getShortVideoInfo();
-  //if (!channel || !video) { console.log("WAAARG"); stopMainVideo(); return; }
+  const channel = getShortChannelInfo();
+  const video = getShortVideoInfo();
+  if (!channel || !video) { stopMainVideo(); return; }
 
   const approvalId = getApprovalId(video, channel, null);
 
   // checking approved or blocked this same item
   if (approvalId === currentApproval?.id) {
-    console.log(`already ${currentApproval.status} ${currentApproval.id}`);
+    //console.log(`already ${currentApproval.status} ${currentApproval.id}`);
     if (currentApproval.status === "approved") {
       playMainVideo();
     } else if (currentApproval.status === "blocked") {
@@ -313,8 +312,8 @@ async function secureShortsPage() {
   const myPoisin = { poisined: false };
   currentApproval = { id: approvalId, status: "checking", poisin: myPoisin };
 
-  //const canWatchRecord = await canWatch(video.id, channel.id, null);//isAllowed("all", "all");
-  const canWatchRecord = await canWatch(null, null, null);//isAllowed("all", "all");
+  const canWatchRecord = await canWatch(video.id, channel.id, null);//isAllowed("all", "all");
+  //const canWatchRecord = await canWatch(null, null, null);//isAllowed("all", "all");
 
   if (myPoisin.poisined) return;
 
@@ -342,7 +341,7 @@ async function secureWatchPage() {
 
   // checking approved or blocked this same item
   if (approvalId === currentApproval?.id) {
-    console.log(`already ${currentApproval.status} ${currentApproval.id}`);
+    //console.log(`already ${currentApproval.status} ${currentApproval.id}`);
     if (currentApproval.status === "approved") return;
     stopMainVideo();
     return;
@@ -350,7 +349,7 @@ async function secureWatchPage() {
 
   // if checking a different item, cancel it
   if (currentApproval?.status === "checking") {
-    console.log(`cancelling ${currentApproval.id}`);
+    //console.log(`cancelling ${currentApproval.id}`);
     currentApproval.poisin.poisined = true;
   }
 
@@ -362,7 +361,7 @@ async function secureWatchPage() {
   if (myPoisin.poisined) return;
 
   if (!canWatchRecord.ok) {
-    console.log(`BLOCKING ${approvalId}`);
+    //console.log(`BLOCKING ${approvalId}`);
     currentApproval = { id: approvalId, status: "blocked" };
     blockWatchPage(video, channel, playlist);
     return;
@@ -371,7 +370,7 @@ async function secureWatchPage() {
   if (canWatchRecord.expiry) {
     setTimeout(reCheckPage, canWatchRecord.expiry - Date.now() + 1000);
   }
-  console.log(`VIDEO [${video.id}] IS ALLOWED`);
+  //console.log(`VIDEO [${video.id}] IS ALLOWED`);
   currentApproval = { id: approvalId, status: "approved" };
   unblockWatchPage();
 }
@@ -393,22 +392,18 @@ function forVidElements(selector: string, f: (el: HTMLVideoElement) => void) {
 }
 
 function playMainVideo() {
-  console.log("play main");
   forVidElements(mainVidSelector, (vid) => { vid.play(); });
 }
 
 function stopMainVideo() {
-  console.log("stop main");
   forVidElements(mainVidSelector, (vid) => { vid.pause(); });
 }
 
 function stopAllButMainVideo() {
-  console.log("stop all but main");
   forVidElements(notMainVideoSelector, (vid) => { vid.pause(); });
 }
 
 function stopAllVideo() {
-  console.log("stop all ");
   forVidElements("video", (vid) => { vid.pause(); });
 }
 
@@ -417,7 +412,6 @@ async function securePage() {
 
   const area = document.location.pathname.split("/")[1];
 
-  console.log("securing...");
 
   if (area === "shorts") {
     //window.location.href = window.location.origin;
@@ -436,9 +430,7 @@ async function securePage() {
 }
 
 async function confirmPasswordSetup() {
-  console.log("checking pasword");
   if (await hasPassword()) return true;
-  console.log("no password");
   stopYTApp();
   const injectNode = getInjectNode();
   injectNode.innerHTML = `
@@ -459,7 +451,6 @@ async function confirmPasswordSetup() {
                  </div>             
                  `;
   injectNode.querySelector("#yt-warden-modal form")?.addEventListener("submit", handlePasswordFormSubmit);
-  console.log("yeah and stuff");
   return false;
 }
 
