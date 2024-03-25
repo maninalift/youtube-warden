@@ -14,6 +14,19 @@ Repeated password guessing is prevented with a timeout.
 The password can be reset from the extension settings. "allow records" that grant access to specific videos, channels and playlists
 can also be deleted from the extension settings.
 
+## Installation
+
+Checkout this repository.
+
+In Google Chrome, in the settings, under extensions, turn on "developer mode" from the toggle button on the top-right.
+
+Restart Google chrome. 
+
+In Google Chrome, in the settings, under extensions, click "load unpacked" and navigate to the "dist" directory of this 
+repository. 
+
+Make sure this extension is enabled and navigate to youtube.com then set up a password.
+
 ## Limitations
 
 In order to prevent your child from disabling this extension, you should use google chrome browser policies.
