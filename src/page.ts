@@ -1,4 +1,4 @@
-import { allow, canWatch, checkPassword, hasPassword, setPassword, getParameterByName, type AllowKind, type Info, isAllowed } from './common';
+import { allow, canWatch, checkPassword, hasPassword, setPassword, getParameterByName, type AllowKind, type Info } from './common';
 
 window.onload = init;
 
@@ -78,9 +78,6 @@ function blockWatchPage(video: Info | null, channel: Info | null, playlist: Info
                          <input type="number" id="hours" name="hours" min="0" max="23" value="" placeholder="h"/>
                          <input type="number" id="mins" name="mins" min="0" max="59" value ="" placeholder="m"/>
                        </div>
-                     </div>
-                     <div class="btn-group">
-                       <label for="exclude-shorts"><input type="checkbox" id="exclude-shorts" name="exclude-shorts" value="exclude-shorts">Exclude shorts</label>
                      </div>
                      <div class="btn-group">
                        ${video ? ('<p><b>Allow Video:</b> ' + video.name + '</p>') : ''}
@@ -224,7 +221,7 @@ function unblockWatchPage() {
   playMainVideo();
 }
 
-/*
+
 function getShortChannelInfo(): Info | null {
   let name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name:not([hidden]):not([hidden] *) a")?.textContent?.trim() || "Unknown";
   let href = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container #channel-name a[href]:not([hidden]):not([hidden] *)")?.textContent?.trim();
@@ -232,7 +229,7 @@ function getShortChannelInfo(): Info | null {
   if (!id) return null;
   return { id, name };
 }
-*/
+
 
 function getChannelInfo(): Info | null {
   let href = document.querySelector("#content ytd-watch-metadata #channel-name a")?.getAttribute("href");
@@ -242,7 +239,7 @@ function getChannelInfo(): Info | null {
   return { id, name };
 }
 
-/*
+
 function getShortVideoInfo(): Info | null {
   let name = document.querySelector("#content ytd-reel-video-renderer[is-active] .metadata-container .title:not([hidden]):not([hidden] *)")?.textContent?.trim() || "Unknown";
   let href = document.querySelector("a.ytp-title-link[href]:not([hidden]):not(hidden *)")?.getAttribute("href");
@@ -250,7 +247,7 @@ function getShortVideoInfo(): Info | null {
   if (!id) return null;
   return { id, name }
 }
-*/
+
 
 function getVideoInfo(): Info | null {
   let id = document.querySelector("#content [video-id]:has(video.html5-main-video):not([hidden] *):not([hidden])")?.getAttribute("video-id");
@@ -280,20 +277,29 @@ function getPlaylistInfo(videoId: string): Info | null {
   return { id, name };
 }
 
-function getApprovalId(video: Info, channel: Info, playlist: Info | null) {
-  if (!playlist) return `${video.id}&${channel.id}`;
-  return `${video.id}&${channel.id}&${playlist.id}`;
+function getApprovalId(video: Info | null, channel: Info | null, playlist: Info | null) {
+  let id = 'A';
+  if (video) id += "-" + video.id;
+  if (playlist) id += "-" + playlist.id;
+  if (channel) id += "-" + channel.id;
+  return id;
 }
 
 
 async function secureShortsPage() {
-  const approvalId = "shorts";
+
+  const channel = null; //getShortChannelInfo();
+  const video = null; //getShortVideoInfo();
+  //if (!channel || !video) { console.log("WAAARG"); stopMainVideo(); return; }
+
+  const approvalId = getApprovalId(video, channel, null);
 
   // checking approved or blocked this same item
   if (approvalId === currentApproval?.id) {
+    console.log(`already ${currentApproval.status} ${currentApproval.id}`);
     if (currentApproval.status === "approved") {
       playMainVideo();
-    } else {
+    } else if (currentApproval.status === "blocked") {
       stopMainVideo();
     }
     return;
@@ -307,13 +313,14 @@ async function secureShortsPage() {
   const myPoisin = { poisined: false };
   currentApproval = { id: approvalId, status: "checking", poisin: myPoisin };
 
-  const canWatchRecord = await isAllowed("all", "all");
+  //const canWatchRecord = await canWatch(video.id, channel.id, null);//isAllowed("all", "all");
+  const canWatchRecord = await canWatch(null, null, null);//isAllowed("all", "all");
 
   if (myPoisin.poisined) return;
 
   if (!canWatchRecord.ok) {
     currentApproval = { id: approvalId, status: "blocked" };
-    blockWatchPage(null, null, null);
+    blockWatchPage(video, channel, null);
     return;
   };
 
@@ -409,6 +416,8 @@ async function securePage() {
   stopAllButMainVideo();
 
   const area = document.location.pathname.split("/")[1];
+
+  console.log("securing...");
 
   if (area === "shorts") {
     //window.location.href = window.location.origin;

@@ -144,17 +144,26 @@ export async function isAllowed(kind: AllowKind, id: string) {
   return { ok: true, expiry: allowedRecord.expiry };
 }
 
-export async function canWatch(videoId: string, channelId: string, playlistId: string | null) {
+export async function canWatch(videoId: string | null, channelId: string | null, playlistId: string | null) {
   console.log(`checking ${videoId}  --   ${channelId}`);
+
   const all = await isAllowed("all", "all");
   if (all.ok) return all;
-  const chn = await isAllowed("channel", channelId);
-  if (chn.ok) return chn;
-  const vid = await isAllowed("video", videoId);
-  if (vid.ok) return vid;
+
+  if (channelId) {
+    const chn = await isAllowed("channel", channelId);
+    if (chn.ok) return chn;
+  }
+
+  if (videoId) {
+    const vid = await isAllowed("video", videoId);
+    if (vid.ok) return vid;
+  }
+
   if (playlistId) {
     const vid = await isAllowed("playlist", playlistId);
     if (vid.ok) return vid;
   }
+
   return { ok: false, expiry: null };
 }
