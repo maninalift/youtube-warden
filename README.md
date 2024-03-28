@@ -16,14 +16,14 @@ can also be deleted from the extension settings.
 
 ## Installation
 
-Checkout this repository.
+Download and extract a [release](https://github.com/maninalift/youtube-warden/releases/) or checkout this repository and build using `npm run build`.
 
 In Google Chrome, in the settings, under extensions, turn on "developer mode" from the toggle button on the top-right.
 
 Restart Google chrome. 
 
-In Google Chrome, in the settings, under extensions, click "load unpacked" and navigate to the "dist" directory of this 
-repository. 
+In Google Chrome, in the settings, under extensions, click "load unpacked" and navigate to the "dist" directory of the 
+repository or the directory of the extracted release.
 
 Make sure this extension is enabled and navigate to youtube.com then set up a password.
 
